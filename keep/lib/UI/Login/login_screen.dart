@@ -9,7 +9,6 @@ import 'package:keep/global/global_styles.dart';
 import 'package:keep/UI/Login/login_screen_presenter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-
 class LoginScreen extends StatefulWidget {
   final String _holdEmail;
 
@@ -33,6 +32,7 @@ class LoginScreenState extends State<LoginScreen>
   bool _isLoading = false;
   bool _isVision = false;
   String _email, _password;
+  bool isLogedIn;
 
   LoginScreenPresenter _presenter;
 
@@ -44,8 +44,9 @@ class LoginScreenState extends State<LoginScreen>
 
   @override
   void initState() {
+    _validateLogin();
     super.initState();
-    print('widget: '+ widget._holdEmail);
+    // print('widget: '+ widget._holdEmail);
     if (widget._holdEmail == 'admin') {
       _emailController = new TextEditingController();
     } else {
@@ -53,9 +54,29 @@ class LoginScreenState extends State<LoginScreen>
     }
   }
 
+  Future _validateLogin() async {
+    Future<dynamic> future = Future(() async {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      return prefs.getString("isLogedIn");
+    });
+    future.then((val) {
+      if (val == null) {
+        setState(() {
+          isLogedIn = false;
+        });
+      } else {
+        setState(() {
+          isLogedIn = true;
+        });
+      }
+    }).catchError((_) {
+      print("catchError");
+    });
+  }
+
   @override
   onAuthStateChanged(AuthState state) {
-    if(state == AuthState.LOGGED_IN)
+    if (state == AuthState.LOGGED_IN)
       Navigator.of(_ctx).pushReplacementNamed("/home");
   }
 
@@ -106,10 +127,11 @@ class LoginScreenState extends State<LoginScreen>
 
   _doLogedIn(User user) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    // await prefs.setBool('isLogedIn', true);
+    await prefs.setString('isLogedIn', 'LogedIn');
     await prefs.setString('apiKey', user.apiKey);
     await prefs.setString('username', user.username);
     await prefs.setString('email', user.email);
+    await prefs.setString('user_pic', user.userPic);
   }
 
   @override
@@ -248,21 +270,34 @@ class LoginScreenState extends State<LoginScreen>
       children: <Widget>[
         Padding(
           padding: EdgeInsets.only(top: 20.0),
-          child:
-              Row(mainAxisAlignment: MainAxisAlignment.end, children: <Widget>[
-            FlatButton(
-              child: Text(
-                'Forget Password?',
-                style: TextStyle(
-                  color: Colors.blueAccent,
-                  fontFamily: 'NanumGothic',
+          child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                FlatButton(
+                  child: Text(
+                    'Register?',
+                    style: TextStyle(
+                      color: Colors.blueAccent,
+                      fontFamily: 'NanumGothic',
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.of(_ctx).pushNamed("/register");
+                  },
                 ),
-              ),
-              onPressed: () {
-                Navigator.of(_ctx).pushNamed("/forget");
-              },
-            ),
-          ]),
+                FlatButton(
+                  child: Text(
+                    'Forget Password?',
+                    style: TextStyle(
+                      color: Colors.blueAccent,
+                      fontFamily: 'NanumGothic',
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.of(_ctx).pushNamed("/forget");
+                  },
+                ),
+              ]),
         )
       ],
     );

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+// import 'package:keep/UI/Home/myhomepage.dart';
 // import 'package:keep/UI/Home/home_screen.dart';
 // import 'package:keep/UI/entrance.dart';
+// import './models/user.dart';
 import 'package:keep/utils/routes.dart';
 import 'package:keep/UI/Login/login_screen.dart';
 
@@ -31,7 +33,6 @@ class MyApp extends StatelessWidget {
       },
       initialRoute: '/',
       routes: routes,
-      // home: LoginPage(),
     );
   }
 }

@@ -32,7 +32,7 @@ class ResetScreenPresenter {
 
   // 发起请求并用于捕捉异常
   doCheck(String email) {
-    api.check(email).then((Object code) {
+    api.check(email).then((String code) {
       _view.onCheckSuccess(code.toString());
     }).catchError((Object error) {
       _view.onCheckError(error.toString());});
