@@ -1,19 +1,22 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:meta/meta.dart';
+import 'package:keep/global/global_tool.dart';
+import 'package:keep/utils/user_pic.dart';
 
 class Friend {
   Friend({
     @required this.avatar,
-    @required this.name,
+    @required this.username,
     @required this.email,
+    @required this.base64Text,
     this.location,
   });
 
   final Object avatar;
-  final String name;
+  final String username;
   final String email;
   final String location;
+  final String base64Text;
 
   static List<Friend> allFromMapList(decodedJson) {
     return decodedJson
@@ -28,17 +31,31 @@ class Friend {
     var avatarData = map['avatar'];
     var avatar;
     if (avatarData != 'null') {
-      var decodeTxt = Base64Decoder().convert(avatarData.split(',')[1]);
-      avatar = MemoryImage(decodeTxt);
+      avatar = txt2Image(avatarData);
     } else {
       avatar = 'null';
+      avatarData = 'null';
     }
-
     return new Friend(
-        avatar: avatar, name: '${_capitalize(name)}', email: map['email']);
+        avatar: avatar, username: '${capitalize(name)}', email: map['email'],
+        base64Text: avatarData);
   }
 
-  static String _capitalize(String input) {
-    return input.substring(0, 1).toUpperCase() + input.substring(1);
+  Map toJson() {
+    print('toJson');
+    return {'username': username, 'email': email, 'avatar': base64Text};
+  }
+
+  factory Friend.fromJson(dynamic json) {
+    return Friend(
+        avatar: json['avatar'] as String,
+        username: json['username'] as String,
+        email: json['email'] as String,
+        base64Text: json['avatar'] as String);
+  }
+
+  @override
+  String toString() {
+    return '{ ${this.username}, ${this.email} }';
   }
 }

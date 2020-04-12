@@ -1,11 +1,10 @@
 import 'dart:async';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import 'note_logo.dart';
 import 'package:flutter/material.dart';
-import 'package:keep/utils/status.dart';
-import 'package:keep/global/global_styles.dart';
+import 'package:keep/global/flush_status.dart';
+import 'package:keep/global/global_tool.dart';
 import 'package:keep/UI/Register/register_screen_presenter.dart';
+import 'note_logo.dart';
 
 class RegisterScreen extends StatefulWidget {
   @override
@@ -68,18 +67,12 @@ class RegisterScreenState extends State<RegisterScreen>
     showFlushBar(_registerCtx, _username, hintTxt, iconIndicator['success']);
     setState(() => _isLoading = false);
 
-    // hold the email
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    print('===================' + _email);
-    await prefs.setString('email', _email);
-
     // jump to login page
     Timer(Duration(seconds: 2), () {
       Navigator.of(_registerCtx).pushNamedAndRemoveUntil(
           "/hold-login", ModalRoute.withName('/'),
           arguments: {'email': _email});
     });
-    // Navigator.of(_registerCtx).pop();
   }
 
   @override

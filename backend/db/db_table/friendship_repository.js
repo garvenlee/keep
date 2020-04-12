@@ -7,7 +7,6 @@ const dbSchema = `CREATE TABLE IF NOT EXISTS FriendShip (
       FOREIGN KEY (user_one_id) REFERENCES User(user_id) ON DELETE CASCADE ON UPDATE CASCADE,
       FOREIGN KEY (user_two_id) REFERENCES User(user_id) ON DELETE CASCADE ON UPDATE CASCADE
     );`;
-
 // 唯一性没有设置
 // 用来维系好友列表
 class FriendShipRepository {
@@ -35,7 +34,6 @@ class FriendShipRepository {
             [status, action_user_id, user_one_id, user_two_id]
         );
     }
-
     delete(user_one_id, user_two_id) {
         return this.dao.run(
             `DELETE FROM FriendShip WHERE user_one_id = ? and user_two_id = ?`,

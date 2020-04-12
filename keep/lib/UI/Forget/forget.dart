@@ -5,9 +5,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:keep/models/user.dart';
-import 'package:keep/utils/status.dart';
-import 'package:keep/global/global_styles.dart';
+import 'package:keep/global/flush_status.dart';
+import 'package:keep/global/global_tool.dart';
 import 'package:keep/UI/Forget/reset_screen_presenter.dart';
+import 'package:keep/utils/sputil.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ForgetScreen extends StatefulWidget {
@@ -71,26 +72,18 @@ class ForgetScreenState extends State<ForgetScreen>
   // }
 
   @override
-  void onResetSuccess(User user) async {
+  void onResetSuccess(String username) async {
     // _showSnackBar(user.username + "'s password has been reset successfullly!");
-    showFlushBar(_ctx, user.username,
-        "Your password has been reset successfully", iconIndicator['success']);
+    showFlushBar(_ctx, username,
+        'Password has been reset successfully.', iconIndicator['success']);
     setState(() => _isLoading = false);
 
-    // hold the email info
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    print('=================' + _emailController.text);
-    await prefs.setString('email', _emailController.text);
-
     // jumpt to login page
-    Timer(Duration(seconds: 2), () {
+    Timer(Duration(milliseconds: 1200), () {
       Navigator.of(_ctx).pushNamedAndRemoveUntil(
           "/hold-login", ModalRoute.withName('/'),
           arguments: {'email': _email});
     });
-    // Navigator.of(_ctx).pushNamedAndRemoveUntil(
-    //     "/hold-login", (Route<dynamic> route) => false,
-    //     arguments: {"email": user.email});
   }
 
   @override
@@ -112,8 +105,7 @@ class ForgetScreenState extends State<ForgetScreen>
     setState(() => _isLoading = false);
 
     // hold the verification code
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('verification_code', code);
+    SpUtil.putString('verification_code', code);
   }
 
   @override

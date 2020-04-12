@@ -27,8 +27,8 @@ function main() {
 
     userRepo.createTable()
         .then(() => {
-            userRepo.create(usernames[0], email[0], password[0], functools.generate_key());
-            userRepo.create(usernames[1], email[1], password[1], functools.generate_key());
+            // userRepo.create(usernames[0], email[0], password[0], functools.generate_key());
+            // userRepo.create(usernames[1], email[1], password[1], functools.generate_key());
         })
         .catch((err) => {
             console.log('create userRepo Error.....');
@@ -37,8 +37,8 @@ function main() {
 
     friendShipRepo.createTable()
         .then(() => {
-            friendShipRepo.create(1, 2, 0, 1);
-            friendShipRepo.update(1, 2, 1, 2);
+            // friendShipRepo.create(1, 2, 0, 1);
+            // friendShipRepo.update(1, 2, 1, 2);
         })
         .catch((error) => {
             console.log('create friendShipRepo error.....');
@@ -47,8 +47,8 @@ function main() {
 
     messageRepo.createTable()
         .then(() => {
-            messageRepo.createChatRoom('Hello', 1, 0);
-            messageRepo.createChatRoom('Hey', 2, 0);
+            // messageRepo.createChatRoom('Hello', 1, 0);
+            // messageRepo.createChatRoom('Hey', 2, 0);
         })
         .catch((error) => {
             console.log("create messageRepo error.....");

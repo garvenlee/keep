@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-// import 'XKTabBar.dart';
-import './chatscreen.dart';
-// import './new_contact.dart';
-// import './home/searchPage.dart';
-import './edit_select_page.dart';
-// import './user/talk.dart';
-
+import 'chatscreen.dart';
+import 'edit_select_page.dart';
+import 'package:keep/global/global_tool.dart';
 class HomeView extends StatefulWidget {
   @override
   _HomeViewState createState() => new _HomeViewState();
@@ -51,10 +47,10 @@ class _HomeViewState extends State {
             leading: CircleAvatar(
               radius: 24.0,
               backgroundColor: Colors.indigoAccent,
-              child: Text('g'),
+              child: Text('g'.toUpperCase()),
               foregroundColor: Colors.white,
             ),
-            title: Text('garvenlee'),
+            title: Text(capitalize('garvenlee')),
             subtitle: Text('SlidableDrawerDelegate'),
             trailing: Container(
                 padding: EdgeInsets.symmetric(vertical: 5.0),

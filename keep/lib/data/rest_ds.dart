@@ -1,22 +1,27 @@
 import 'dart:async';
 import 'dart:convert';
-
+import 'dart:io';
 import 'package:keep/utils/network_util.dart';
 import 'package:keep/models/user.dart';
 import 'package:keep/models/friend.dart';
 
 class RestDatasource {
   NetworkUtil _netUtil = new NetworkUtil();
-  static final baseURL = "http://192.168.124.14:42300/user/";
-  static final loginURL = baseURL + "login";
-  static final registerURL = baseURL + "register";
-  static final checkURL = baseURL + "forget";
-  static final resetURL = baseURL + "reset";
+  static final baseURL = "http://192.168.124.15:42300/";
+  static final userNamespace = 'user/';
+  static final imageNamespace = 'image/';
+  static final chatNamespace = 'chat/';
+
+  static final loginURL = baseURL + userNamespace + "login";
+  static final registerURL = baseURL + userNamespace + "register";
+  static final checkURL = baseURL + userNamespace + "forget";
+  static final resetURL = baseURL + userNamespace + "reset";
+  static final userPicURL = baseURL + imageNamespace + 'upload';
   // static final _apiKey = "somerandomkey";
 
   Future<User> login(String email, String password) {
     print('login......');
-    print(email + ' ' + password);
+    // print(email + ' ' + password);
     return _netUtil
         .post(loginURL,
             headers: {
@@ -30,7 +35,6 @@ class RestDatasource {
             }),
             encoding: Utf8Codec())
         .then((dynamic res) {
-      print('error......');
       if (res["error"]) {
         throw new Exception(res["error_msg"]);
       }
@@ -56,7 +60,7 @@ class RestDatasource {
     });
   }
 
-  Future<User> reset(String email, String password) {
+  Future<String> reset(String email, String password) {
     return _netUtil
         .post(resetURL,
             headers: {
@@ -69,7 +73,7 @@ class RestDatasource {
       if (res["error"]) {
         throw new Exception(res["error_msg"]);
       }
-      return new User.map(res['user']);
+      return res['username'];
     });
   }
 
@@ -93,14 +97,48 @@ class RestDatasource {
   }
 
   Future<List<Friend>> getFriends(String email) {
-    String getFriendsURL = baseURL + email;
+    String getFriendsURL = baseURL + userNamespace + email;
     print(getFriendsURL);
-    return _netUtil.get(getFriendsURL).then((res) {
+    return _netUtil.get(
+      getFriendsURL,
+      headers: {
+        "content-type": "application/json",
+        "accept": "application/json"
+      },
+    ).then((res) {
       print(res);
       if (res["error"]) {
         throw new Exception(res["error_msg"]);
       }
+      print(res['error']);
       return Friend.allFromMapList(res['friends']);
+    });
+  }
+
+  Future<String> upload(File file) {
+    String base64Image = base64Encode(file.readAsBytesSync());
+    var nowTimeStamp = DateTime.now().millisecondsSinceEpoch;
+    print(userPicURL);
+    return _netUtil
+        .post(userPicURL,
+            headers: {
+              "content-type": "application/json",
+              "accept": "application/json"
+            },
+            body: json.encode({
+              "imageData": base64Image,
+              "email": "root@163.com",
+              "timestamp": nowTimeStamp,
+            }),
+            encoding: Utf8Codec())
+        .then((res) {
+      // print(res['error']);
+      if (res["error"]) {
+        print('throw error');
+        throw new Exception(res["error_msg"]);
+      }
+      print('no error.....');
+      return res['hint_msg'];
     });
   }
 }

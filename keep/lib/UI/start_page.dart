@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import './Login/login_screen.dart';
-import './Home/myhomepage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:keep/utils/sputil.dart';
+import 'Login/login_screen.dart';
+import 'Home/myhomepage.dart';
 
 class StartApp extends StatefulWidget {
   StartApp({Key key}) : super(key: key);
@@ -15,35 +15,17 @@ class _StartAppState extends State<StartApp> {
 
   void initState() {
     super.initState();
-    _validateLogin();
+    setState(() {
+      isLogedIn = SpUtil.getString('isLogedIn');
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (isLogedIn == 1) {
+    if (isLogedIn == 'LogedIn') {
       return MyHomePage();
     } else {
       return LoginScreen("admin");
     }
-  }
-
-  Future _validateLogin() async {
-    Future<dynamic> future = Future(() async {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      return prefs.getString("isLogedIn");
-    });
-    future.then((val) {
-      if (val == null) {
-        setState(() {
-          isLogedIn = 0;
-        });
-      } else {
-        setState(() {
-          isLogedIn = 1;
-        });
-      }
-    }).catchError((_) {
-      print("catchError");
-    });
   }
 }

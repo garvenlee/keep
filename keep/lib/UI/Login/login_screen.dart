@@ -1,13 +1,16 @@
 import 'dart:ui';
-import 'package:flutter/material.dart';
-import 'package:keep/utils/status.dart';
-import 'package:keep/utils/auth.dart';
+
 import 'package:flutter/cupertino.dart';
-import 'package:keep/models/user.dart';
+import 'package:flutter/material.dart';
+
+import 'package:keep/global/global_tool.dart';
 import 'package:keep/UI/Login/login_widget.dart';
-import 'package:keep/global/global_styles.dart';
 import 'package:keep/UI/Login/login_screen_presenter.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:keep/data/rest_ds.dart';
+import 'package:keep/models/friend.dart';
+import 'package:keep/models/user.dart';
+import 'package:keep/utils/sputil.dart';
+import 'package:keep/global/flush_status.dart';
 
 class LoginScreen extends StatefulWidget {
   final String _holdEmail;
@@ -21,7 +24,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class LoginScreenState extends State<LoginScreen>
-    implements LoginScreenContract, AuthStateListener {
+    implements LoginScreenContract {
   final formKey = new GlobalKey<FormState>();
   final scaffoldKey = new GlobalKey<ScaffoldState>();
   TextEditingController _emailController;
@@ -33,18 +36,16 @@ class LoginScreenState extends State<LoginScreen>
   bool _isVision = false;
   String _email, _password;
   bool isLogedIn;
+  RestDatasource _api = new RestDatasource();
 
   LoginScreenPresenter _presenter;
 
   LoginScreenState() {
     _presenter = new LoginScreenPresenter(this);
-    var authStateProvider = new AuthStateProvider();
-    authStateProvider.subscribe(this);
   }
 
   @override
   void initState() {
-    _validateLogin();
     super.initState();
     // print('widget: '+ widget._holdEmail);
     if (widget._holdEmail == 'admin') {
@@ -52,32 +53,6 @@ class LoginScreenState extends State<LoginScreen>
     } else {
       _emailController = new TextEditingController(text: widget._holdEmail);
     }
-  }
-
-  Future _validateLogin() async {
-    Future<dynamic> future = Future(() async {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      return prefs.getString("isLogedIn");
-    });
-    future.then((val) {
-      if (val == null) {
-        setState(() {
-          isLogedIn = false;
-        });
-      } else {
-        setState(() {
-          isLogedIn = true;
-        });
-      }
-    }).catchError((_) {
-      print("catchError");
-    });
-  }
-
-  @override
-  onAuthStateChanged(AuthState state) {
-    if (state == AuthState.LOGGED_IN)
-      Navigator.of(_ctx).pushReplacementNamed("/home");
   }
 
   void _submit() async {
@@ -97,16 +72,10 @@ class LoginScreenState extends State<LoginScreen>
     });
   }
 
-  // void _showSnackBar(String text) {
-  //   scaffoldKey.currentState
-  //       .showSnackBar(new SnackBar(content: new Text(text)));
-  // }
-
   @override
   void onLoginError(String errorTxt) {
     // print('error===============================');
     showFlushBar(_ctx, _email, errorTxt, iconIndicator['error']);
-    // _showSnackBar(errorTxt);
     setState(() {
       _isLoading = false;
       _isVision = true;
@@ -125,13 +94,24 @@ class LoginScreenState extends State<LoginScreen>
         .pushNamedAndRemoveUntil("/home", (Route<dynamic> route) => false);
   }
 
-  _doLogedIn(User user) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('isLogedIn', 'LogedIn');
-    await prefs.setString('apiKey', user.apiKey);
-    await prefs.setString('username', user.username);
-    await prefs.setString('email', user.email);
-    await prefs.setString('user_pic', user.userPic);
+  _doLogedIn(User user) {
+    SpUtil.putString('isLogedIn', 'LogedIn');
+    SpUtil.putString('apiKey', user.apiKey);
+    SpUtil.putString('username', user.username);
+    SpUtil.putString('email', user.email);
+    SpUtil.putString('userPic', user.userPic);
+    _loadFriends();
+  }
+
+    Future<void> _loadFriends() async {
+    // print(_email);
+    _api.getFriends(_email).then((List<Friend> friends) {
+          SpUtil.putObjectList("friends", friends);
+          print('get friends done.');
+        }).catchError((Object error){
+          print('still have not friends yet.');
+          print(error.toString());
+        });
   }
 
   @override

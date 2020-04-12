@@ -1,9 +1,12 @@
-import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'chat_item.dart';
+import 'package:flutter/material.dart';
 import 'package:adhara_socket_io/adhara_socket_io.dart';
+import 'package:keep/global/global_tool.dart';
 
-const String URI = "http://192.168.124.14:42300/";
+import 'package:keep/utils/sputil.dart';
+import 'chat_item.dart';
+
+const String URI = "http://192.168.124.15:42300/";
 
 class ChatScreen extends StatefulWidget {
   @override
@@ -21,10 +24,13 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   Map<String, bool> _isProbablyConnected = {};
   String selfName = 'Anonymous';
   int nowTimestamp;
+  String _email;
+  BuildContext _ctx;
 
   @override
   void initState() {
     super.initState();
+    this._email = SpUtil.getString('email');
     _messages = <ChatItemWidget>[];
     textEditingController = TextEditingController();
     scrollController = ScrollController();
@@ -162,7 +168,7 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   Widget buildChatInput() {
     return new Flexible(
         child: new Container(
-            width: MediaQuery.of(context).size.width * 0.7,
+            // width: MediaQuery.of(context).size.width * 0.7,
             padding: const EdgeInsets.all(2.0),
             child: Container(
               height: 40.0,
@@ -193,8 +199,11 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   Widget buildFaceTool() {
     return Material(
       child: new Container(
-        margin: new EdgeInsets.symmetric(horizontal: 1.0),
+        width: 36.0,
+        // margin: new EdgeInsets.symmetric(horizontal: 1.0),
         child: new IconButton(
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
           onPressed: () => {},
           icon: new Icon(Icons.face),
           color: Colors.grey,
@@ -204,9 +213,26 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     );
   }
 
+  Widget buildLink() {
+    return Material(
+      child: new Container(
+        // margin: new EdgeInsets.symmetric(horizontal: 1.0),
+        width: 36.0,
+        child: new IconButton(
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          onPressed: () => {},
+          icon: new Icon(Icons.link),
+          color: Colors.grey,
+        ),
+      ),
+      color: Colors.white,
+    );
+  }
+
   Widget buildSendButton() {
     return new Container(
-        margin: const EdgeInsets.symmetric(horizontal: 20.0),
+        // margin: const EdgeInsets.symmetric(horizontal: 20.0),
         height: 45.0,
         child: FloatingActionButton(
           backgroundColor: Colors.deepPurple,
@@ -250,6 +276,7 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         child: new Row(
           children: <Widget>[
             buildFaceTool(),
+            buildLink(),
             buildChatInput(),
             buildSendButton(),
           ],
@@ -258,43 +285,66 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     );
   }
 
+  Widget buildHeader() {
+    return Container(
+        height: 50.0,
+        decoration: BoxDecoration(color: Colors.blueGrey),
+        padding: new EdgeInsets.symmetric(horizontal: 10.0),
+        child: Row(children: <Widget>[
+          Container(
+              width: MediaQuery.of(_ctx).size.width * 0.15 - 10.0,
+              child: IconButton(
+                  icon: Icon(Icons.arrow_back),
+                  onPressed: () {
+                    Navigator.of(_ctx).pop();
+                  })),
+          Container(
+              width: MediaQuery.of(_ctx).size.width * 0.3,
+              child: Text(capitalize('garvenlee'),
+                  style: TextStyle(
+                      // color: Colors.white70,
+                      fontSize: 18.0))),
+          Container(
+              height: 40.0,
+              width: MediaQuery.of(context).size.width * 0.4,
+              padding: const EdgeInsets.all(5.0)),
+          Container(
+              width: MediaQuery.of(_ctx).size.width * 0.15 - 10.0,
+              child: IconButton(icon: Icon(Icons.more_vert), onPressed: () {})),
+        ]));
+  }
+
   @override
   Widget build(BuildContext context) {
-    // createSocketConnection();
+    _ctx = context;
     return new Scaffold(
-        backgroundColor: Colors.white,
-        appBar: PreferredSize(
-          preferredSize:
-              Size.fromHeight(MediaQuery.of(context).size.height * 0.05),
-          child: SafeArea(
-            top: true,
-            child: Offstage(),
-          ),
-        ),
         // leads input bar not padding
         // resizeToAvoidBottomPadding: false,
-        body: new Column(
-          children: <Widget>[
-            new Flexible(
-              child: new ListView.builder(
-                // physics: const NeverScrollableScrollPhysics(),
-                controller: scrollController,
-                padding: new EdgeInsets.all(8.0),
-                reverse: true,
-                itemBuilder: (_, int index) => _messages[index],
-                itemCount: _messages.length,
-              ),
-            ),
-            new Divider(
-              height: 1.0,
-            ),
-            new Container(
-              decoration: new BoxDecoration(
-                color: Theme.of(context).cardColor,
-              ),
-              child: _textComposerWidget(),
-            )
-          ],
-        ));
+        body: SafeArea(
+            child: new Column(
+      children: <Widget>[
+        buildHeader(),
+        new Flexible(
+          child: new ListView.builder(
+            // physics: const NeverScrollableScrollPhysics(),
+            controller: scrollController,
+            padding: new EdgeInsets.all(8.0),
+            reverse: true,
+            itemBuilder: (_, int index) => _messages[index],
+            itemCount: _messages.length,
+          ),
+        ),
+        new Divider(
+          height: 1.0,
+        ),
+        new Container(
+          height: 54,
+          decoration: new BoxDecoration(
+            color: Theme.of(context).cardColor,
+          ),
+          child: _textComposerWidget(),
+        )
+      ],
+    )));
   }
 }

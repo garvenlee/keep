@@ -1,20 +1,9 @@
 import 'package:flutter/material.dart';
 
-// global variable
-bool isLogedIn = false;
-
-//  swiper image
-final String swiper1 = 'assets/images/swiper1.jpg';
-final String swiper2 = 'assets/images/swiper2.jpg';
-final String swiper3 = 'assets/images/swiper3.jpg';
-
 // Text Style
 final entranceStyle = TextStyle(fontFamily: 'Montserrat', fontSize: 15.0);
 
-
-
 // statusBar
-final List<String> imageLists = [swiper1, swiper2, swiper3];
 final List<Icon> iconLists = [
   Icon(
     Icons.check,
@@ -26,7 +15,6 @@ final List<Icon> iconLists = [
   )
 ];
 final iconIndicator = {"success": 0, "error": 1};
-
 
 // form validate
 final RegExp emailReg =
@@ -59,4 +47,18 @@ String judgeCode(String val) {
   } else {
     return !codeReg.hasMatch(val) ? "no character in code!" : null;
   }
+}
+
+String capitalize(String input) {
+  return input.substring(0, 1).toUpperCase() + input.substring(1);
+}
+
+class UploadPopReceiver {
+  Map<String, dynamic> stream;
+  UploadPopReceiver(this.stream);
+}
+
+class UpgradeUserPic{
+  Map<String, dynamic> stream;
+  UpgradeUserPic(this.stream);
 }

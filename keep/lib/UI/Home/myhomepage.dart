@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import './nav_drawer.dart';
-import '../../models/get_user.dart';
-import '../Home/chat/chat_mainpage.dart';
+import 'package:keep/utils/sputil.dart';
+import 'package:keep/UI/Home/chat/chat_mainpage.dart';
+import 'nav_drawer.dart';
 
 class MyHomePage extends StatefulWidget {
   @override
@@ -24,16 +24,12 @@ class _MyHomePageState extends State<MyHomePage> {
   // String _apiKey;
   String _userPic;
 
-  Future<void> _loadUser() async {
-    Future<String> username = getUsername();
-    Future<String> email = getEmail();
-    // Future<String> apiKey = getApiKey();
-    Future<String> userPic = getUserPic();
-
-    username.then((val) => setState(() => _username = val));
-    email.then((val) => setState(() => _email = val));
-    // apiKey.then((val) => setState(() => _apiKey = val));
-    userPic.then((val) => setState(() => _userPic = val));
+  void _loadUser() {
+    setState(() {
+      _username = SpUtil.getString('username');
+      _email = SpUtil.getString('email');
+      _userPic = SpUtil.getString('userPic');
+    });
   }
 
   @override
@@ -44,11 +40,12 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    // print(_userPic);
     return Container(
         child: DefaultTabController(
       length: _kTabs.length,
       child: Scaffold(
-        drawer: NavDrawer(_username, _email, _userPic),
+        drawer: NavDrawer(),
         appBar: AppBar(
           title: Text('Keep'),
           backgroundColor: Colors.cyan,

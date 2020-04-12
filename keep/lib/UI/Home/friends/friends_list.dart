@@ -1,20 +1,17 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import '../chat/chatscreen.dart';
-import '../../../data/rest_ds.dart';
-import '../../../models/friend.dart';
+import 'package:keep/UI/Home/chat/chatscreen.dart';
+import 'package:keep/models/friend.dart';
+import 'package:keep/utils/sputil.dart';
+import 'package:keep/utils/user_pic.dart';
 
 class FriendsList extends StatefulWidget {
-  final String email;
-  FriendsList(this.email);
   @override
   _FriendsListState createState() => new _FriendsListState();
 }
 
 class _FriendsListState extends State<FriendsList> {
   List<Friend> _friends = [];
-  RestDatasource _api = new RestDatasource();
+  // RestDatasource _api = new RestDatasource();
   @override
   void initState() {
     print('load friends......');
@@ -22,19 +19,15 @@ class _FriendsListState extends State<FriendsList> {
     super.initState();
   }
 
-  Future<void> _loadFriends() async {
-    print(widget.email);
-    _api.getFriends(widget.email).then((friends) => setState(() {
-          _friends = friends;
-          print('get friends done.');
-        }));
+  void _loadFriends(){
+    setState((){
+      _friends = SpUtil.getObjList("friends", Friend.fromMap);
+    });
   }
 
   Widget _buildFriendListTile(BuildContext context, int index) {
     var friend = _friends[index];
-    // print(friend.avatar);
     return new ListTile(
-      // onTap: () => _navigateToFriendDetails(friend, friend.email),
       onTap: () =>
           Navigator.of(context).push(new MaterialPageRoute(builder: (_) {
         return ChatScreen();
@@ -43,16 +36,14 @@ class _FriendsListState extends State<FriendsList> {
           tag: index,
           child: friend.avatar != 'null'
               ? CircleAvatar(
-                  // backgroundImage: new NetworkImage(friend.avatar),
                   backgroundImage: friend.avatar)
-              : new CircleAvatar(
-                  radius: 25.0,
-                  child: new Text(
-                    friend.name[0],
-                    style: TextStyle(color: Colors.redAccent),
-                  ),
-                )),
-      title: new Text(friend.name),
+              : normalUserPic(
+                username: friend.username, 
+                picRadius: 25.0, 
+                fontSize: 20.0,
+                fontColor: Colors.white,  
+                bgColor: Colors.indigoAccent)),
+      title: new Text(friend.username),
       subtitle: new Text(friend.email),
     );
   }

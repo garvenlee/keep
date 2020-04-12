@@ -10,6 +10,11 @@ const FriendShipRepository = require('../db/db_table/friendship_repository');
 const MessageRepository = require('../db/db_table/message_repository');
 const RoomRepository = require('../db/db_table/room_repository');
 const RoomClientRepository = require('../db/db_table/room_client_repository');
+// password hash saved
+const bcrypt = require('bcryptjs'); //Importing the NPM bcrypt package.
+const saltRounds = 10; //We are setting salt rounds, higher is safer.
+var salt = bcrypt.genSaltSync(saltRounds);
+
 
 function handleFriendsGet(res, stream) {
     try {
@@ -58,7 +63,7 @@ function handleFriendsGet(res, stream) {
                                 userRepo.getByUserId(IdList[IdList.length - 1])
                                     .then((user) => {
                                         console.log(user);
-                                        userImageRepo.getImage(user.user_id)
+                                        userImageRepo.getByUserId(user.user_id)
                                             .then((userImage) => {
                                                 console.log('enter.......');
                                                 var imgBase64;
@@ -109,9 +114,10 @@ function handleLogin(res, stream) {
                     "error_msg": "User has not exist."
                 });
             } else {
-                // console.log(user.id, user.username, user.email, user.password);
-                if (user.password === password) {
-                    userImageRepo.getImage(user.user_id)
+                var response = bcrypt.compareSync(password, user.password);
+                // response == true if they match
+                if (response) {
+                    userImageRepo.getByUserId(user.user_id)
                         .then((userImage) => {
                             var imgBase64;
                             if (userImage === undefined) {
@@ -158,8 +164,15 @@ function handleRegister(res, stream) {
     userRepo.getByEmail(email)
         .then((user) => {
             if (user === undefined) {
-                userRepo.create(username, email, password, api_key);
-                res.json({ 'error': false, "hint_msg": "You have registered successfully!" });
+                var hash = bcrypt.hashSync(password, salt);
+                userRepo.create(username, email, hash, api_key)
+                    .then((user) => {
+                        if (user === undefined) {
+                            res.json({ 'error': true, 'error_msg': 'Error in User Table Operation .' })
+                        } else {
+                            res.json({ 'error': false, "hint_msg": "You have registered successfully!" });
+                        }
+                    });
             } else {
                 res.json({ 'error': true, "error_msg": "User has exist!" });
             }
@@ -176,7 +189,7 @@ function handleReset(res, stream) {
     }
     var dao = new AppDAO('./db/database.sqlite3');
     var userRepo = new UserRepository(dao);
-
+    var username;
     userRepo.getByEmail(email)
         .then((user) => {
             if (user === undefined) {
@@ -185,19 +198,27 @@ function handleReset(res, stream) {
                     "error": true,
                     "error_msg": "Email is invalid!"
                 });
-
             } else {
-                userRepo.update(stream);
-                res.json({
-                    "error": false,
-                    "user": {
-                        "username": user.username,
-                        "email": user.email,
-                        "password": user.password,
-                        "api_key": user.api_key
-                    }
-                });
-
+                console.log('reset password..............');
+                username = user.username;
+                var hash = bcrypt.hashSync(password, salt);
+                userRepo.update(email, hash)
+                    .then((user) => {
+                        // user = {id:0}
+                        if (user === undefined) {
+                            console.log('failed');
+                            res.json({
+                                'error': true,
+                                'error_msg': 'Error in User Table Operation.'
+                            });
+                        } else {
+                            console.log('success');
+                            res.json({
+                                "error": false,
+                                "username": username
+                            });
+                        }
+                    });
             }
         });
 }
@@ -242,7 +263,7 @@ async function handleImageUpload(res, stream) {
         res.json({ "error": true, "error_msg": "Missing data." });
         return;
     }
-
+    console.log('get data from client...........');
     var dao = new AppDAO('./db/database.sqlite3');
     var userRepo = new UserRepository(dao);
     var userImageRepo = new UserImageRepository(dao);
@@ -252,7 +273,7 @@ async function handleImageUpload(res, stream) {
 
     // handle timestamp used to get the path to save image
     var date_ob = new Date(timestamp).toLocaleString().split(' ');
-    console.log(date_ob);
+    // console.log(date_ob);
     var date_prefix = date_ob[0].split('-');
     var date_postfix = date_ob[1].split(':');
     var year = date_prefix[0];
@@ -269,43 +290,79 @@ async function handleImageUpload(res, stream) {
     var image = imageData.replace(/^data:image\/\w+;base64,/, "");
     var realFile = Buffer.from(image, "base64");
     console.log(img_path);
+
+
+
+    // 保存图片
+    fs.writeFile(img_path, realFile, (err) => {
+        if (err) {
+            console.log('saving picture error....');
+            console.log(img_path + '=======>' + user_id);
+        } else {
+            console.log('saving picture success.');
+        }
+    });
+    // console.log(userId);
+
+    // 更新数据库
     userRepo.getByEmail(email)
         .then((user) => {
             console.log('user', user);
             if (user === undefined) {
                 console.log('user does not exist.');
-                res.json({ 'error': true, 'error_msg': 'User does not exist.' });
+                res.json({
+                    'error': true,
+                    'error_msg': 'User does not exist.'
+                });
             } else {
                 console.log('user does exist');
                 user_id = user.user_id;
-                try {
-                    console.log(img_path);
-                    fs.writeFileSync(img_path, realFile);
-                } catch (e) {
-                    console.log('saving picture error...');
-                    res.json({ "error": true, "error_msg": "Picture saved error!" });
-                    // throw e;
-                    return;
-                }
-                console.log('saving picture success.');
-                // console.log(userId);
-                userImageRepo.create(img_path, user_id)
+                console.log(user.user_id);
+                userImageRepo.getByUserId(user.user_id)
                     .then((image) => {
-                        console.log('enter....');
                         if (image === undefined) {
-                            console.log('image table op error.');
-                            res.json({ "error": true, "error_msg": "Image table op error." });
+                            console.log('create.........................');
+                            userImageRepo.create(img_path, user_id)
+                                .then((image) => {
+                                    console.log('enter....');
+                                    if (image === undefined) {
+                                        console.log('image table op error.');
+                                        res.json({
+                                            "error": true,
+                                            "error_msg": "Error in Image Table Operation ."
+                                        });
+                                    } else {
+                                        res.json({
+                                            'error': false,
+                                            "hint_msg": "Picture was uploaded successfully."
+                                        });
+                                    }
+                                });
+
                         } else {
-                            res.json({
-                                'error': false,
-                                "hint_msg": "Picture saved success."
-                            });
+                            console.log('update........................');
+                            userImageRepo.update(img_path, user_id)
+                                .then((image) => {
+                                    console.log('enter....');
+                                    if (image === undefined) {
+                                        console.log('image table op error.');
+                                        res.json({
+                                            "error": true,
+                                            "error_msg": "Error in Image Table Operation ."
+                                        });
+                                    } else {
+                                        res.json({
+                                            'error': false,
+                                            "hint_msg": "Picture was uploaded successfully."
+                                        });
+                                    }
+                                });
+
                         }
                     });
             }
         });
 }
-
 
 
 module.exports = {

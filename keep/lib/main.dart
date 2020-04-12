@@ -1,13 +1,23 @@
 import 'package:flutter/material.dart';
-// import 'package:keep/UI/Home/myhomepage.dart';
-// import 'package:keep/UI/Home/home_screen.dart';
-// import 'package:keep/UI/entrance.dart';
-// import './models/user.dart';
+import 'package:flutter/services.dart';
+import 'package:keep/utils/sputil.dart';
 import 'package:keep/utils/routes.dart';
 import 'package:keep/UI/Login/login_screen.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  myRunApp();
+  SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+    statusBarColor: Colors.blue[300],
+    statusBarBrightness: Brightness.dark,
+    statusBarIconBrightness: Brightness.light,
+    systemNavigationBarIconBrightness: Brightness.light,
+  ));
   runApp(MyApp());
+}
+
+void myRunApp() async {
+  await SpUtil.getInstance();
 }
 
 class MyApp extends StatelessWidget {

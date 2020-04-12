@@ -1,13 +1,13 @@
 import 'package:flushbar/flushbar.dart';
 import 'package:flutter/material.dart';
-import 'package:keep/global/global_styles.dart';
+import 'package:keep/global/global_tool.dart';
 
 
 Widget showFlushBar(BuildContext context, String username, String text, int id) {
     return Flushbar(
       title: "Hey, " + username,
       message: text,
-      duration: Duration(seconds: 3),
+      duration: Duration(seconds: 1),
       flushbarPosition: FlushbarPosition.TOP,
       flushbarStyle: FlushbarStyle.FLOATING,
       // backgroundColor: Colors.redAccent,

@@ -24,7 +24,14 @@ class UserImageRepository {
             [img_path, user_id]);
     }
 
-    getImage(user_id) {
+    update(img_path, user_id) {
+        return this.dao.run(
+            'UPDATE UserImage SET img_path = ? WHERE user_id = ?',
+            [img_path, user_id]);
+
+    }
+
+    getByUserId(user_id) {
         return this.dao.get(
             `SELECT * FROM UserImage WHERE user_id = ?`,
             [user_id]);

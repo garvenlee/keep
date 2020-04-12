@@ -1,6 +1,6 @@
 const dbSchema = `CREATE TABLE IF NOT EXISTS User(
         user_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-        username TEXT NOT NULL UNIQUE,
+        username TEXT NOT NULL,
         email TEXT NOT NULL UNIQUE,
         password TEXT NOT NULL,
         api_key TEXT NOT NULL UNIQUE
@@ -21,11 +21,10 @@ class UserRepository {
             [username, email, password, api_key]);
     }
 
-    update(user) {
-        const { email, password } = user; // dict pack
+    update(email, password) {
         return this.dao.run(
             `UPDATE User SET password = ? WHERE email = ?`,
-            [email, password]
+            [password, email]
         );
     }
 
