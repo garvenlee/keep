@@ -1,11 +1,11 @@
 const dbSchema = `
   CREATE TABLE IF NOT EXISTS RoomClient (
     client_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
     room_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
     timestamp INTEGER NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES User(user_id) ON UPDATE CASCADE ON DELETE CASCADE,
-    FOREIGN KEY (room_id) REFERENCES Room(room_id) ON UPDATE CASCADE ON DELETE CASCADE
+    FOREIGN KEY (room_id) REFERENCES Room(room_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES User(user_id) ON UPDATE CASCADE ON DELETE CASCADE
     )`;
 
 
@@ -19,10 +19,22 @@ class RoomClientRepository {
         return this.dao.run(dbSchema);
     }
 
-    addMember(room_name, room_size, timestamp) {
+    create(room_id, user_id, timestamp) {
         timestamp = timestamp || Math.floor(Date.now() / 1000);
-        return this.dao.run(`INSERT INTO Room (room_name, room_size, timestamp) VALUES (?, ?, ?)`,
-            [room_name, room_size, timestamp]);
+        return this.dao.run(`INSERT INTO Room (room_id, user_id, timestamp) VALUES (?, ?, ?)`,
+            [room_id, user_id, timestamp]);
+    }
+
+    delete(room_id, user_id) {
+        return this.dao.run(
+            `DELETE FROM RoomClient WHERE room_id = ? and user_id = ?`,
+            [room_id, user_id]);
+    }
+
+    getAllByUserId(user_id) {
+        return this.dao.all(
+            `SELECT * FROM RoomClient WHERE user_id = ?`,
+            [user_id]);
     }
 
     getChatList(room_id) {

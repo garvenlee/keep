@@ -4,12 +4,12 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:keep/models/user.dart';
+import 'package:keep/global/connectivity_status.dart';
 import 'package:keep/global/flush_status.dart';
 import 'package:keep/global/global_tool.dart';
 import 'package:keep/UI/Forget/reset_screen_presenter.dart';
 import 'package:keep/utils/sputil.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
 
 class ForgetScreen extends StatefulWidget {
   @override
@@ -30,6 +30,12 @@ class ForgetScreenState extends State<ForgetScreen>
   bool _isLoading = false;
   bool _isVision = false;
   String _email, _password, _code;
+  var connectionStatus;
+
+  // set timeout
+  Timer _timer;
+  int _secondDelay = 3;
+  final oneSec = const Duration(seconds: 1);
 
   ResetScreenPresenter _presenter;
 
@@ -37,26 +43,67 @@ class ForgetScreenState extends State<ForgetScreen>
     _presenter = new ResetScreenPresenter(this);
   }
 
+  @override
+  void dispose() {
+    if (_timer != null) {
+      _timer.cancel();
+    }
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  void netErrIndicatorTimeout() {
+    _timer = new Timer.periodic(
+      oneSec,
+      (Timer timer) => setState(
+        () {
+          if (_secondDelay < 1) {
+            _isLoading = false;
+            _secondDelay = 3;
+            _showSnackBar('Please check your internet.');
+            _timer.cancel();
+          } else {
+            print('sub one');
+            _secondDelay = _secondDelay - 1;
+          }
+        },
+      ),
+    );
+  }
+
   void _onCheck() {
     String email = _emailController.text;
-    print(email);
     var res =
         !emailReg.hasMatch(email) ? "Please check the email's format" : null;
-    if (res == null) {
+    if (res != null) {
+      onCheckError("please check the email.");
+    } else if (connectionStatus == ConnectivityStatus.Available) {
       _presenter.doCheck(email);
     } else {
-      onCheckError("please check the email.");
+      _showSnackBar('Please check your internet.');
     }
   }
 
   void _onSubmit() async {
     final form = formKey.currentState;
     if (form.validate()) {
-      setState(() => _isLoading = true);
-      form.save();
-      await Future.delayed(Duration(seconds: 3));
-      _presenter.doReset(_email, _password, _code);
+      if (connectionStatus == ConnectivityStatus.Available) {
+        setState(() => _isLoading = true);
+        form.save();
+        await Future.delayed(Duration(seconds: 3));
+        _presenter.doReset(_email, _password, _code);
+      } else {
+        setState(() {
+          _isLoading = true;
+        });
+        netErrIndicatorTimeout();
+      }
     }
+  }
+
+  void _showSnackBar(String text) {
+    scaffoldKey.currentState
+        .showSnackBar(new SnackBar(content: new Text(text)));
   }
 
   void _toggle() {
@@ -65,17 +112,10 @@ class ForgetScreenState extends State<ForgetScreen>
     });
   }
 
-  // void _showSnackBar(String text) {
-  //   scaffoldKey.currentState
-  //       .showSnackBar(new SnackBar(content: new Text(text)));
-  //   // .showSnackBar(SnackBar(content: new SnackBar(content: new Text(text))));
-  // }
-
   @override
   void onResetSuccess(String username) async {
-    // _showSnackBar(user.username + "'s password has been reset successfullly!");
-    showFlushBar(_ctx, username,
-        'Password has been reset successfully.', iconIndicator['success']);
+    showFlushBar(_ctx, username, 'Password has been reset successfully.',
+        iconIndicator['success']);
     setState(() => _isLoading = false);
 
     // jumpt to login page
@@ -96,7 +136,6 @@ class ForgetScreenState extends State<ForgetScreen>
   @override
   void onCheckSuccess(String code) async {
     print(code);
-    // _showSnackBar("verification code has been sent to your email.");
     showFlushBar(
         _ctx,
         _emailController.text,
@@ -110,7 +149,6 @@ class ForgetScreenState extends State<ForgetScreen>
 
   @override
   void onCheckError(String errorTxt) {
-    // _showSnackBar(errorTxt);
     showFlushBar(_ctx, _emailController.text, errorTxt, iconIndicator['error']);
     setState(() => _isLoading = false);
   }
@@ -119,6 +157,7 @@ class ForgetScreenState extends State<ForgetScreen>
   Widget build(BuildContext context) {
     _ctx = context;
     var resetForm = _buildForm();
+    connectionStatus = Provider.of<ConnectivityStatus>(context);
     return _buildSigninPage(resetForm);
   }
 
@@ -351,13 +390,12 @@ class ForgetScreenState extends State<ForgetScreen>
 
   Widget _buildHintTxt() {
     return Container(
-      width: MediaQuery.of(_ctx).size.width * 0.4,
+      width: MediaQuery.of(_ctx).size.width * 0.5,
       margin: EdgeInsets.symmetric(
           horizontal: MediaQuery.of(_ctx).size.width * 0.225 - 36.0),
       padding: EdgeInsets.only(bottom: 25.0),
       child: Container(
-        child: Text(
-            '\twrite the valid email, and you will get a verification code soon.',
+        child: Text('Make sure email is valid.',
             style: TextStyle(
                 color: Colors.white70, fontFamily: 'Times New Romance')),
       ),
@@ -365,47 +403,53 @@ class ForgetScreenState extends State<ForgetScreen>
   }
 
   Widget _buildVCode() {
-    return Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: <Widget>[
-          new Container(
-              width: MediaQuery.of(_ctx).size.width * 0.45,
-              padding: const EdgeInsets.fromLTRB(8.0, 8.0, 0, 8.0),
-              child: new TextFormField(
-                onSaved: (val) => _code = val,
-                validator: (val) => judgeCode(val),
-                style: forgetStyle,
-                enabled: true,
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.next,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                      color: Colors.blueGrey,
+    return IntrinsicHeight(
+        child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+          new Flexible(
+              flex: 5,
+              child: Container(
+                  // width: MediaQuery.of(_ctx).size.width * 0.45,
+                  padding: const EdgeInsets.fromLTRB(8.0, 8.0, 0, 8.0),
+                  child: new TextFormField(
+                    onSaved: (val) => _code = val,
+                    validator: (val) => judgeCode(val),
+                    style: forgetStyle,
+                    enabled: true,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: Colors.blueGrey,
+                        ),
+                      ),
+                      labelText: 'Code',
+                      labelStyle: TextStyle(
+                          fontSize: 15.0,
+                          color: Colors.amberAccent.withOpacity(0.8)),
+                      contentPadding: EdgeInsets.all(16.0),
                     ),
-                  ),
-                  labelText: 'Code',
-                  labelStyle: TextStyle(
-                      fontSize: 15.0,
-                      color: Colors.amberAccent.withOpacity(0.8)),
-                  contentPadding: EdgeInsets.all(16.0),
-                ),
-              )),
-          new Container(
-              width: MediaQuery.of(_ctx).size.width * 0.2,
-              height: 66.0,
-              padding: const EdgeInsets.fromLTRB(0, 8.0, 8.0, 8.0),
-              child: RaisedButton(
-                child: Text('Check',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontFamily: 'NanumGothic',
-                      fontWeight: FontWeight.bold,
-                    )),
-                color: Color(0xFF6C63FF).withOpacity(0.65),
-                onPressed: () => _onCheck(),
-              )),
-        ]);
+                  ))),
+          new Flexible(
+              flex: 3,
+              child: Container(
+                  height: 64.0,
+                  padding: const EdgeInsets.fromLTRB(0, 8.0, 8.0, 8.0),
+                  // width: MediaQuery.of(_ctx).size.width * 0.2,
+                  child: RaisedButton(
+                    child: Text('Check',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontFamily: 'NanumGothic',
+                          fontWeight: FontWeight.bold,
+                        )),
+                    color: Color(0xFF6C63FF).withOpacity(0.65),
+                    onPressed: () => _onCheck(),
+                  ))),
+        ]));
   }
 }

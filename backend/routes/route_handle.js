@@ -2,6 +2,7 @@
 var fs = require('fs');
 var path = require('path');
 var functools = require('./tools');
+var JwtUtil = require('../tools/jwt');
 
 const AppDAO = require('../db/db_access/dao');
 const UserRepository = require('../db/db_table/user_repository');
@@ -18,79 +19,69 @@ var salt = bcrypt.genSaltSync(saltRounds);
 
 function handleFriendsGet(res, stream) {
     try {
-        var email = stream.email;
+        var userId = Number(stream.userId);
     } catch (error) {
         console.log('Missing data.');
         res.json({ "error": true, "error_msg": "Missing data." });
         return;
     }
-    console.log(email);
+    console.log(userId);
     var dao = new AppDAO('./db/database.sqlite3');
     var userRepo = new UserRepository(dao);
     var friendShipRepo = new FriendShipRepository(dao);
     var userImageRepo = new UserImageRepository(dao);
     var friendIdList = [];
     var friendList = [];
-    userRepo.getByEmail(email)
-        .then((user) => {
-            if (user === undefined) {
-                console.log('User has not exist.');
-                res.json({
-                    "error": true,
-                    "error_msg": "User has not exist."
-                });
-            } else {
-                console.log(user.user_id);
-                friendShipRepo.getFriendsList(user.user_id).then((friends) => {
-                    if (friends === undefined || friends.length === 0) {
-                        console.log('has not any friend yet.');
-                        res.json({ 'error': true, 'error_msg': 'still has not any friend yet.' });
-                    } else {
-                        console.log(friends);
-                        friends.forEach((friend) => {
-                            if (friend.user_one_id === user.user_id) {
-                                friendIdList.push(friend.user_two_id);
-                            } else {
-                                friendIdList.push(friend.user_one_id);
-                            }
-                            console.log(friendIdList);
-                        });
-                        console.log(friendIdList);
-                        // use callback to handle async event but not loop
-                        (function loopCallback(IdList) {
-                            if (IdList.length) {
-                                // console.log(IdList);
-                                userRepo.getByUserId(IdList[IdList.length - 1])
-                                    .then((user) => {
-                                        console.log(user);
-                                        userImageRepo.getByUserId(user.user_id)
-                                            .then((userImage) => {
-                                                console.log('enter.......');
-                                                var imgBase64;
-                                                if (userImage === undefined) {
-                                                    imgBase64 = 'null';
-                                                } else {
-                                                    var img_path = userImage.img_path;
-                                                    var imgData = fs.readFileSync(img_path).toString("base64");
-                                                    imgBase64 = "data:image/jpg;base64," + imgData;
-                                                }
-                                                friendList.push({
-                                                    "username": user.username,
-                                                    "email": user.email,
-                                                    "avatar": imgBase64
-                                                });
-                                                loopCallback(IdList.slice(0, -1));
-                                            });
+
+    friendShipRepo.getFriendsList(userId).then((friends) => {
+        if (friends === undefined || friends.length === 0) {
+            console.log('has not any friend yet.');
+            res.json({ 'error': true, 'error_msg': 'still has not any friend yet.' });
+        } else {
+            console.log(friends);
+            friends.forEach((friend) => {
+                if (friend.user_one_id === userId) {
+                    friendIdList.push(friend.user_two_id);
+                } else {
+                    friendIdList.push(friend.user_one_id);
+                }
+                console.log(friendIdList);
+            });
+            console.log(friendIdList);
+            // use callback to handle async event but not loop
+            (function loopCallback(IdList) {
+                if (IdList.length) {
+                    // console.log(IdList);
+                    userRepo.getByUserId(IdList[IdList.length - 1])
+                        .then((user) => {
+                            console.log(user);
+                            userImageRepo.getByUserId(user.user_id)
+                                .then((userImage) => {
+                                    console.log('enter.......');
+                                    var imgBase64;
+                                    if (userImage === undefined) {
+                                        imgBase64 = 'null';
+                                    } else {
+                                        var img_path = userImage.img_path;
+                                        var imgData = fs.readFileSync(img_path).toString("base64");
+                                        imgBase64 = "data:image/jpg;base64," + imgData;
+                                    }
+                                    friendList.push({
+                                        "userId": user.user_id,
+                                        "username": user.username,
+                                        "email": user.email,
+                                        "avatar": imgBase64
                                     });
-                            } else {
-                                // console.log('list: ', friendList);
-                                res.json({ "error": false, "friends": friendList });
-                            }
-                        })(friendIdList);
-                    }
-                });
-            }
-        });
+                                    loopCallback(IdList.slice(0, -1));
+                                });
+                        });
+                } else {
+                    // console.log('list: ', friendList);
+                    res.json({ "error": false, "friends": friendList });
+                }
+            })(friendIdList);
+        }
+    });
 }
 
 function handleLogin(res, stream) {
@@ -105,6 +96,7 @@ function handleLogin(res, stream) {
     var dao = new AppDAO('./db/database.sqlite3');
     var userRepo = new UserRepository(dao);
     var userImageRepo = new UserImageRepository(dao);
+
     userRepo.getByEmail(email)
         .then((user) => {
             if (user === undefined) {
@@ -117,6 +109,9 @@ function handleLogin(res, stream) {
                 var response = bcrypt.compareSync(password, user.password);
                 // response == true if they match
                 if (response) {
+                    // login sucess => generate token
+                    var jwt = new JwtUtil(user.user_id.toString());
+                    var token = jwt.generateToken();
                     userImageRepo.getByUserId(user.user_id)
                         .then((userImage) => {
                             var imgBase64;
@@ -127,15 +122,20 @@ function handleLogin(res, stream) {
                                 var imgData = fs.readFileSync(img_path).toString("base64");
                                 imgBase64 = "data:image/jpg;base64," + imgData;
                             }
+                            // console.log(user.user_id);
+                            // console.log(imgBase64);
+
                             res.json({
                                 "error": false,
+                                "token": token,
                                 "user": {
+                                    "user_id": user.user_id.toString(),
                                     "username": user.username,
                                     "email": user.email,
                                     "password": user.password,
                                     "api_key": user.api_key,
                                     "user_pic": imgBase64
-                                }
+                                },
                             });
                         });
                 } else {
@@ -156,7 +156,8 @@ function handleRegister(res, stream) {
         res.json({ "error": true, "error_msg": "Missing data." });
         return;
     }
-    var api_key = functools.generate_key();
+    // var api_key = functools.generate_key();
+    var api_key = functools.generateUUID();
 
     var dao = new AppDAO('./db/database.sqlite3');
     var userRepo = new UserRepository(dao);
@@ -223,7 +224,7 @@ function handleReset(res, stream) {
         });
 }
 
-function handleForget(res, stream) {
+function handleCheck(res, stream) {
     try {
         var { email } = stream;
     } catch (error) {
@@ -257,19 +258,17 @@ function handleForget(res, stream) {
 
 async function handleImageUpload(res, stream) {
     try {
-        var { imageData, email, timestamp } = stream;
+        var { imageData, userId, timestamp } = stream;
     } catch (error) {
         console.log('Missing data.');
         res.json({ "error": true, "error_msg": "Missing data." });
         return;
     }
+    userId = Number(userId);
     console.log('get data from client...........');
     var dao = new AppDAO('./db/database.sqlite3');
     var userRepo = new UserRepository(dao);
     var userImageRepo = new UserImageRepository(dao);
-
-    // the sender's user_id
-    var user_id;
 
     // handle timestamp used to get the path to save image
     var date_ob = new Date(timestamp).toLocaleString().split(' ');
@@ -297,79 +296,62 @@ async function handleImageUpload(res, stream) {
     fs.writeFile(img_path, realFile, (err) => {
         if (err) {
             console.log('saving picture error....');
-            console.log(img_path + '=======>' + user_id);
+            console.log(img_path + '=======>' + userId);
         } else {
             console.log('saving picture success.');
         }
     });
-    // console.log(userId);
 
     // 更新数据库
-    userRepo.getByEmail(email)
-        .then((user) => {
-            console.log('user', user);
-            if (user === undefined) {
-                console.log('user does not exist.');
-                res.json({
-                    'error': true,
-                    'error_msg': 'User does not exist.'
-                });
-            } else {
-                console.log('user does exist');
-                user_id = user.user_id;
-                console.log(user.user_id);
-                userImageRepo.getByUserId(user.user_id)
+    userImageRepo.getByUserId(userId)
+        .then((image) => {
+            if (image === undefined) {
+                console.log('create.........................');
+                userImageRepo.create(img_path, userId)
                     .then((image) => {
+                        console.log('enter....');
                         if (image === undefined) {
-                            console.log('create.........................');
-                            userImageRepo.create(img_path, user_id)
-                                .then((image) => {
-                                    console.log('enter....');
-                                    if (image === undefined) {
-                                        console.log('image table op error.');
-                                        res.json({
-                                            "error": true,
-                                            "error_msg": "Error in Image Table Operation ."
-                                        });
-                                    } else {
-                                        res.json({
-                                            'error': false,
-                                            "hint_msg": "Picture was uploaded successfully."
-                                        });
-                                    }
-                                });
-
+                            console.log('image table op error.');
+                            res.json({
+                                "error": true,
+                                "error_msg": "Error in Image Table Operation ."
+                            });
                         } else {
-                            console.log('update........................');
-                            userImageRepo.update(img_path, user_id)
-                                .then((image) => {
-                                    console.log('enter....');
-                                    if (image === undefined) {
-                                        console.log('image table op error.');
-                                        res.json({
-                                            "error": true,
-                                            "error_msg": "Error in Image Table Operation ."
-                                        });
-                                    } else {
-                                        res.json({
-                                            'error': false,
-                                            "hint_msg": "Picture was uploaded successfully."
-                                        });
-                                    }
-                                });
-
+                            res.json({
+                                'error': false,
+                                "hint_msg": "Picture was uploaded successfully."
+                            });
                         }
                     });
+
+            } else {
+                console.log('update........................');
+                userImageRepo.update(img_path, userId)
+                    .then((image) => {
+                        console.log('enter....');
+                        if (image === undefined) {
+                            console.log('image table op error.');
+                            res.json({
+                                "error": true,
+                                "error_msg": "Error in Image Table Operation ."
+                            });
+                        } else {
+                            res.json({
+                                'error': false,
+                                "hint_msg": "Picture was uploaded successfully."
+                            });
+                        }
+                    });
+
             }
         });
 }
-
 
 module.exports = {
     handleFriendsGet: handleFriendsGet,
     handleLogin: handleLogin,
     handleRegister: handleRegister,
     handleReset: handleReset,
-    handleForget: handleForget,
-    handleImageUpload: handleImageUpload
+    handleCheck: handleCheck,
+    handleImageUpload: handleImageUpload,
 };

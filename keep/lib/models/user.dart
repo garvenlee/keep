@@ -1,32 +1,58 @@
+import 'package:keep/global/global_tool.dart';
+
 class User {
-  String _email;
-  String _password;
-  String _username;
-  String _apiKey;
-  String _userPic;
-  User(this._email, this._password, this._username, this._apiKey, this._userPic);
+  int userId;
+  String email;
+  String password;
+  String username;
+  String apiKey;
+  String userPic;
+  User(
+      {this.userId,
+      this.email,
+      this.password,
+      this.username,
+      this.apiKey,
+      this.userPic});
 
   User.map(dynamic obj) {
-    this._email = obj["email"];
-    this._password = obj["password"] ?? "hey, you don't know";
-    this._username = obj["username"];
-    this._apiKey = obj["api_key"] ?? "You don't know";
-    this._userPic = obj["user_pic"];
+    this.userId = int.parse(obj['user_id']);
+    this.email = obj["email"];
+    this.password = obj["password"] ?? "hey, you don't know";
+    this.username = obj["username"];
+    this.apiKey = obj["api_key"] ?? "You don't know";
+    this.userPic = obj["user_pic"];
   }
 
-  String get email => _email;
-  String get password => _password;
-  String get apiKey => _apiKey;
-  String get username => _username;
-  String get userPic => _userPic;
+  static User fromMap(Map map) {
+    return new User(
+        userId: int.parse(map['user_id']),
+        email: map['email'],
+        password: map['password'] ?? 'You do not know',
+        username: capitalize(map['username']),
+        apiKey: map['api_key'],
+        userPic: map['user_pic']);
+  }
 
-  Map<String, dynamic> toMap() {
-    var map = new Map<String, dynamic>();
-    map["email"] = _email;
-    map["password"] = _password;
-    map["username"] = _username;
-    map["api_key"] = _apiKey;
-    map["user_pic"] = _userPic;
-    return map;
+  Map toJson() {
+    print('toJson');
+    return {
+      'user_id': userId.toString(),
+      'email': email,
+      'password': password,
+      'username': username,
+      'api_key': apiKey,
+      'user_pic': userPic
+    };
+  }
+
+  factory User.fromJson(dynamic json) {
+    return User(
+        userId: json['user_id'] as int,
+        email: json['email'] as String,
+        password: json['password'] as String,
+        username: json['username'] as String,
+        apiKey: json['api_key'] as String,
+        userPic: json['user_pic'] as String);
   }
 }

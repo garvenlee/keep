@@ -41,10 +41,22 @@ class FriendShipRepository {
         );
     }
 
+    getFriendItem(user_one_id, user_two_id) {
+        return this.dao.run(
+            `SELECT * FROM FriendShip WHERE (user_one_id = ? and user_two_id = ?)`,
+            [user_one_id, user_two_id]);
+    }
+
     getFriendsList(user_id) {
         return this.dao.all(
             `SELECT * FROM FriendShip WHERE (user_two_id = ? or user_one_id = ?) and status = 1`,
             [user_id, user_id]);
+    }
+
+    getFriendRequests(user_two_id) {
+        return this.dao.all(
+            `SELECT * FROM FriendShip WHERE (user_two_id = ? and status = 0)`,
+            [user_two_id]);
     }
 }
 

@@ -1,14 +1,25 @@
 const dbSchema = `
   CREATE TABLE IF NOT EXISTS Message (
     msg_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    message TEXT NOT NULL,
-    user_one_id INTEGER DEFAULT 0,
-    user_two_id INTEGER DEFAULT 0,
-    group_id INTEGER DEFAULT 0,
-    timestamp INTEGER NOT NULL,
-    FOREIGN KEY(user_one_id) REFERENCES User(user_id) ON UPDATE CASCADE ON DELETE CASCADE,
-    FOREIGN KEY(user_two_id) REFERENCES User(user_id) ON UPDATE CASCADE ON DELETE CASCADE)
-    `;
+    chat_type INTEGER NOT NULL,
+    message_type TEXT NOT NULL,
+    message_body TEXT NOT NULL,
+    creator_idINTEGER NOT NULL,
+    recipient_id INTEGER DEFAULT 0,
+    recipient_group_id INTEGER DEFAULT 1,
+    create_at INTEGER NOT NULL,
+    expired_at INTEGER NOT NULL,
+    is_read INTEGER DEFAULT 1
+    );`;
+
+// chat_type: 1 is p2p, 2 is group
+
+// message_type: img/audio/text
+// message_body: "hello, world"
+
+// expired_at 用于记录消息的过期时间
+// => 可用于消息漫游
+// => 设定30天漫游
 
 // 用以保存信息
 class MessageRepository {
@@ -20,26 +31,29 @@ class MessageRepository {
         return this.dao.run(dbSchema);
     }
 
-    createP2P(message, user_one_id, user_two_id, timestamp) {
-        timestamp = timestamp || Math.floor(Date.now() / 1000);
+    createP2P(message_type, message_body, creator_id, recipient_id, create_at, expired_at, chat_type = 1) {
         return this.dao.run(
-            `INSERT INTO Message (message, user_one_id, user_two_id, timestamp) VALUES (?, ?, ?, ?)`,
-            [message, user_one_id, user_two_id, timestamp]);
+            `INSERT INTO Message (chat_type, message_type, message_body, creator_id, recipient_id, create_at, expired_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [chat_type, message_type, message_body, creator_id, recipient_id, create_at, expired_at]);
     }
 
-    createChatRoom(message, user_one_id, group_id, timestamp) {
-        timestamp = timestamp || Math.floor(Date.now() / 1000);
+    createGroup(message_type, message_body, creator_id, recipient_group_id, create_at, expired_at, chat_type = 2) {
         return this.dao.run(
-            `INSERT INTO Message (message, user_one_id, group_id, timestamp) VALUES (?, ?, ?, ?)`,
-            [message, user_one_id, group_id, timestamp]);
+            `INSERT INTO Message (chat_type, message_type, message_body, creator_id, recipient_group_id, create_at, expired_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [chat_type, message_type, message_body, creator_id, recipient_group_id, create_at, expired_at]);
     }
 
-    getChatList(group_id) {
-        return this.dao.run(
-            `SELECT * FROM Message WHERE group_id = ?`,
-            [group_id]);
+    getOneP2PByMsgId(msg_id) {
+        return this.dao.get(
+            `SELECT * FROM Message WHERE msg_id = ?`,
+            [msg_id]);
+    }
+
+    getOneP2PByReId(recipient_id) {
+        return this.dao.get(
+            `SELECT * FROM Message WHERE recipient_id = ?`,
+            [recipient_id]);
     }
 }
-
 
 module.exports = MessageRepository;

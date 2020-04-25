@@ -4,6 +4,7 @@ import 'package:keep/UI/Login/login_screen.dart';
 import 'package:keep/UI/Register/register.dart';
 import 'package:keep/UI/Forget/forget.dart';
 import 'package:keep/UI/start_page.dart';
+import 'package:keep/UI/storageBox/storage_box.dart';
 
 final routes = {
   '/login': (BuildContext context) => new LoginScreen('admin'),
@@ -11,4 +12,5 @@ final routes = {
   '/forget': (BuildContext context) => new ForgetScreen(),
   '/home': (BuildContext context) => new MyHomePage(),
   '/': (BuildContext context) => new StartApp(),
+  '/test': (BuildContext context) => new StorageBox(title: 'storage box'),
 };

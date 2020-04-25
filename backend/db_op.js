@@ -6,7 +6,9 @@ const AppDAO = require('./db/db_access/dao');
 const UserRepository = require('./db/db_table/user_repository');
 const UserImageRepository = require('./db/db_table/image_repository');
 const FriendShipRepository = require('./db/db_table/friendship_repository');
+const FriendShipClientRepository = require('./db/db_table/friendship_client_repository');
 const MessageRepository = require('./db/db_table/message_repository');
+const MessageClientRepository = require('./db/db_table/message_client_repository');
 const RoomRepository = require('./db/db_table/room_repository');
 const RoomClientRepository = require('./db/db_table/room_client_repository');
 
@@ -21,7 +23,9 @@ function main() {
     const userRepo = new UserRepository(dao);
     const userImageRepo = new UserImageRepository(dao);
     const friendShipRepo = new FriendShipRepository(dao);
+    const friendClientRepo = new FriendShipClientRepository(dao);
     const messageRepo = new MessageRepository(dao);
+    const messageClientRepo = new MessageClientRepository(dao);
     const roomRepo = new RoomRepository(dao);
     const roomClientRepo = new RoomClientRepository(dao);
 
@@ -54,10 +58,11 @@ function main() {
             console.log("create messageRepo error.....");
             console.log(JSON.stringify(err));
         });
-
+    messageClientRepo.createTable();
     userImageRepo.createTable();
     roomRepo.createTable();
     roomClientRepo.createTable();
+    friendClientRepo.createTable();
 }
 
 

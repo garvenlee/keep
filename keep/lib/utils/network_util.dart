@@ -10,7 +10,8 @@ class NetworkUtil {
 
   final JsonDecoder _decoder = new JsonDecoder();
 
-  Future<dynamic> get(String url, {Map<String, String> headers}) {
+  Future<dynamic> get(String url,
+      {Map<String, String> headers, bool isJson = true}) {
     return http.get(url, headers: headers).then((http.Response response) {
       final String res = response.body;
       final int statusCode = response.statusCode;
@@ -19,7 +20,7 @@ class NetworkUtil {
         throw new Exception("Error while fetching data");
       }
       print('active....');
-      return _decoder.convert(res);
+      return isJson ? _decoder.convert(res) : res;
     });
   }
 

@@ -15,6 +15,16 @@ function generate_code() {
 }
 
 
+var generateUUID = function() {
+    var d = new Date().getTime();
+    var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = (d + Math.random() * 16) % 16 | 0;
+        d = Math.floor(d / 16);
+        return (c == 'x' ? r : (r & 0x7 | 0x8)).toString(16);
+    });
+    return uuid;
+};
+
 
 /**
  * 读取路径信息
@@ -73,12 +83,18 @@ async function dirExists(dir) {
 
 
 // function handleFriendsList(friend)
-
-
-
+var MyLog = function(msg, val2) {
+    if (val2) {
+        console.log(msg, val2);
+    } else {
+        console.log(msg);
+    }
+}
 
 module.exports = {
     generate_code: generate_code,
     generate_key: generate_key,
-    dirExists: dirExists
+    dirExists: dirExists,
+    generateUUID: generateUUID,
+    MyLog: MyLog
 };

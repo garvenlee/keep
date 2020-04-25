@@ -30,27 +30,13 @@ class _UserPicState extends State<UserPic> {
   }
 }
 
-Widget buildErrorHint(BuildContext context, bool vision) {
-  var content;
-  if (vision) {
-    //如果数据不为空，则显示Text
-    content = new Container(
-        height: MediaQuery.of(context).size.height * 0.03,
-        // color: Colors.white,
-        child: new Text("Please check your email or password.",
-            style: TextStyle(
-                color: Colors.red,
-                fontSize: 14.0,
-                fontWeight: FontWeight.w600)));
-  } else {
-    content = new SizedBox.fromSize(
-      child: Container(
-        height: MediaQuery.of(context).size.height * 0.05,
-        // color: Colors.white,
-      ),
-    );
-  }
-  return content;
+Widget buildSpace(BuildContext context) {
+  return new SizedBox.fromSize(
+    child: Container(
+      height: MediaQuery.of(context).size.height * 0.04,
+      // color: Colors.white,
+    ),
+  );
 }
 
 Widget widgetLabelTxt() {
@@ -134,8 +120,8 @@ class WidgetLabelContinueWith extends StatelessWidget {
   }
 }
 
-Widget widgetStatusLogin(bool isLoading) {
-  if (isLoading) {
+Widget widgetStatusLogin(bool triger, String hintTxt) {
+  if (triger) {
     return Center(
         child: Container(
       decoration: BoxDecoration(
@@ -158,7 +144,7 @@ Widget widgetStatusLogin(bool isLoading) {
                       ? CupertinoActivityIndicator()
                       : CircularProgressIndicator(),
                   SizedBox(height: 16.0),
-                  Text('Please wait'),
+                  Text(hintTxt),
                 ],
               ),
             ),

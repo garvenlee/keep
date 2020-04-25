@@ -44,7 +44,7 @@ class SpUtil {
   static Future<bool> putObjectList(String key, List<Object> list) {
     if (_prefs == null) return null;
     List<String> _dataList = list?.map((value) {
-      print(value);
+      // print(value);
       return json.encode(value);
     })?.toList();
     return _prefs.setStringList(key, _dataList);

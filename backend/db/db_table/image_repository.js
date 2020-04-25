@@ -2,8 +2,7 @@ const dbSchema = `CREATE TABLE IF NOT EXISTS UserImage (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       img_path TEXT NOT NULL,
       user_id INTEGER NOT NULL,
-      FOREIGN KEY (user_id) REFERENCES User(user_id) ON DELETE CASCADE ON UPDATE CASCADE
-    );`;
+      FOREIGN KEY(user_id) REFERENCES User(user_id) ON DELETE CASCADE ON UPDATE CASCADE   );`;
 
 
 // 用来维系好友列表
@@ -17,7 +16,7 @@ class UserImageRepository {
     }
 
     create(img_path, user_id) {
-        // 发送好友请求，status=0，等待对方回应
+        // 发送好友请求， status=0，等待对方回应
         // this.dao.run('ALTER TABLE UserImage NOCHECK CONSTRAINT user_id');
         return this.dao.run(
             'INSERT INTO UserImage (img_path, user_id) VALUES (?, ?)',

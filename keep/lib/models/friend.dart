@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:meta/meta.dart';
 import 'package:keep/global/global_tool.dart';
-import 'package:keep/utils/user_pic.dart';
+import 'package:keep/global/user_pic.dart';
 
 class Friend {
   Friend({
+    @required this.userId,
     @required this.avatar,
     @required this.username,
     @required this.email,
@@ -12,6 +13,7 @@ class Friend {
     this.location,
   });
 
+  final int userId;
   final Object avatar;
   final String username;
   final String email;
@@ -27,6 +29,9 @@ class Friend {
   }
 
   static Friend fromMap(Map map) {
+    // print('enter.....................');
+    // print(map);
+    // print(map['userId'].runtimeType);
     var name = map['username'];
     var avatarData = map['avatar'];
     var avatar;
@@ -37,17 +42,26 @@ class Friend {
       avatarData = 'null';
     }
     return new Friend(
-        avatar: avatar, username: '${capitalize(name)}', email: map['email'],
+        userId: map['userId'] as int,
+        avatar: avatar,
+        username: '${capitalize(name)}',
+        email: map['email'],
         base64Text: avatarData);
   }
 
   Map toJson() {
-    print('toJson');
-    return {'username': username, 'email': email, 'avatar': base64Text};
+    // print('toJson');
+    return {
+      'userId': userId.toString(),
+      'username': username,
+      'email': email,
+      'avatar': base64Text
+    };
   }
 
   factory Friend.fromJson(dynamic json) {
     return Friend(
+        userId: int.parse(json['userId']),
         avatar: json['avatar'] as String,
         username: json['username'] as String,
         email: json['email'] as String,

@@ -1,16 +1,19 @@
 import 'dart:ui';
-
+import 'dart:async';
+import 'package:keep/data/provider/friend_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:keep/data/provider/user_provider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import 'package:keep/global/connectivity_status.dart';
 import 'package:keep/global/global_tool.dart';
+import 'package:keep/global/flush_status.dart';
 import 'package:keep/UI/Login/login_widget.dart';
 import 'package:keep/UI/Login/login_screen_presenter.dart';
-import 'package:keep/data/rest_ds.dart';
-import 'package:keep/models/friend.dart';
 import 'package:keep/models/user.dart';
-import 'package:keep/utils/sputil.dart';
-import 'package:keep/global/flush_status.dart';
+import 'package:keep/utils/socket_util.dart';
+import 'package:keep/utils/event_util.dart';
 
 class LoginScreen extends StatefulWidget {
   final String _holdEmail;
@@ -33,10 +36,16 @@ class LoginScreenState extends State<LoginScreen>
   BuildContext _ctx;
   bool _obscureText = true;
   bool _isLoading = false;
-  bool _isVision = false;
   String _email, _password;
-  bool isLogedIn;
-  RestDatasource _api = new RestDatasource();
+  String apiKey;
+  // Get our connection status from the provider
+  var connectionStatus;
+  bool _offline = false;
+
+  // set timeout
+  Timer _timer;
+  int _secondDelay = 3;
+  final oneSec = const Duration(seconds: 1);
 
   LoginScreenPresenter _presenter;
 
@@ -44,25 +53,74 @@ class LoginScreenState extends State<LoginScreen>
     _presenter = new LoginScreenPresenter(this);
   }
 
+  void _showSnackBar(String text) {
+    scaffoldKey.currentState
+        .showSnackBar(new SnackBar(content: new Text(text)));
+  }
+
+  void netErrIndicatorTimeout() {
+    _timer = new Timer.periodic(
+      oneSec,
+      (Timer timer) => setState(
+        () {
+          if (_secondDelay < 1) {
+            setState(() {
+              _isLoading = false;
+              _secondDelay = 3;
+              _showSnackBar(_offline
+                  ? loginErrorHint['netError']
+                  : loginErrorHint['loginError']);
+            });
+            timer.cancel();
+          } else {
+            _secondDelay = _secondDelay - 1;
+          }
+        },
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+    if (_timer != null) {
+      _timer.cancel();
+    }
+    _emailController.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
-    // print('widget: '+ widget._holdEmail);
     if (widget._holdEmail == 'admin') {
       _emailController = new TextEditingController();
     } else {
       _emailController = new TextEditingController(text: widget._holdEmail);
     }
+    // 或用于进行二次登录控制
+    apiKey = UserProvider.getApiKey() ?? 'null';
   }
 
   void _submit() async {
     final form = formKey.currentState;
-
     if (form.validate()) {
-      setState(() => _isLoading = true);
-      form.save();
-      await Future.delayed(Duration(seconds: 3));
-      _presenter.doLogin(_email, _password);
+      if (connectionStatus == ConnectivityStatus.Available) {
+        print('network available.');
+        setState(() {
+          _offline = false;
+          _isLoading = true;
+        });
+        form.save();
+        await Future.delayed(Duration(seconds: 3));
+        _presenter.doLogin(_email, _password);
+      } else {
+        print('network unavailable.');
+        setState(() {
+          _offline = true;
+          _isLoading = true;
+        });
+        netErrIndicatorTimeout();
+      }
     }
   }
 
@@ -76,47 +134,46 @@ class LoginScreenState extends State<LoginScreen>
   void onLoginError(String errorTxt) {
     // print('error===============================');
     showFlushBar(_ctx, _email, errorTxt, iconIndicator['error']);
-    setState(() {
-      _isLoading = false;
-      _isVision = true;
-    });
+    setState(() => _isLoading = false);
   }
 
   @override
-  void onLoginSuccess(User user) {
-    setState(() {
-      _isLoading = false;
-      _isVision = false;
+  void onLoginSuccess(User user) async {
+    setState(() => _isLoading = false);
+    UserProvider.saveUser(user);
+    // login post请求成功后先进行socket连接测试
+    await new SocketUtil().socket.then((socket) {
+      // 若socket连接成功，就进入主页面
+      bus.on('login', (data) {
+        showFlushBar(
+            _ctx, _email, "You have loged in!", iconIndicator['success']);
+        FriendProvider.saveFriends(user.userId)
+            .then((_) => Timer(Duration(milliseconds: 1500), () {
+                  Navigator.of(_ctx).pushNamedAndRemoveUntil(
+                      "/home", (Route<dynamic> route) => false);
+                }));
+      });
+
+      // 这个error当服务器正常开启时一般不会触发
+      bus.on('login-error', (data) {
+        showFlushBar(
+            _ctx, _email, "There is uncertain error!", iconIndicator['error']);
+      });
+
+      // 如果socket连接被拦截，显示提示栏
+      bus.on('authorized', (data) {
+        if (data == 'Not authorized') {
+          showFlushBar(
+              _ctx, _email, "You have not authorized!", iconIndicator['error']);
+        }
+      });
     });
-    _doLogedIn(user);
-    showFlushBar(_ctx, _email, "You have loged in!", iconIndicator['success']);
-    Navigator.of(_ctx)
-        .pushNamedAndRemoveUntil("/home", (Route<dynamic> route) => false);
-  }
-
-  _doLogedIn(User user) {
-    SpUtil.putString('isLogedIn', 'LogedIn');
-    SpUtil.putString('apiKey', user.apiKey);
-    SpUtil.putString('username', user.username);
-    SpUtil.putString('email', user.email);
-    SpUtil.putString('userPic', user.userPic);
-    _loadFriends();
-  }
-
-    Future<void> _loadFriends() async {
-    // print(_email);
-    _api.getFriends(_email).then((List<Friend> friends) {
-          SpUtil.putObjectList("friends", friends);
-          print('get friends done.');
-        }).catchError((Object error){
-          print('still have not friends yet.');
-          print(error.toString());
-        });
   }
 
   @override
   Widget build(BuildContext context) {
     _ctx = context;
+    connectionStatus = Provider.of<ConnectivityStatus>(context);
     var loginForm = _buildForm();
     return new Scaffold(
         appBar: PreferredSize(
@@ -141,7 +198,7 @@ class LoginScreenState extends State<LoginScreen>
                 width: MediaQuery.of(context).size.width,
                 child: Column(children: <Widget>[
                   UserPic(),
-                  buildErrorHint(context, _isVision),
+                  buildSpace(context),
                   Container(
                     width: MediaQuery.of(context).size.width * 0.85,
                     decoration: BoxDecoration(
@@ -156,7 +213,7 @@ class LoginScreenState extends State<LoginScreen>
                   )
                 ]),
               ))),
-          widgetStatusLogin(_isLoading),
+          widgetStatusLogin(_isLoading, 'Please wait.'),
         ]));
   }
 
@@ -165,7 +222,8 @@ class LoginScreenState extends State<LoginScreen>
       // autovalidate: true,
       key: formKey,
       child: Padding(
-          padding: const EdgeInsets.all(36.0),
+          padding: const EdgeInsets.only(
+              left: 36.0, right: 36.0, top: 15.0, bottom: 36.0),
           child: new Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
@@ -185,7 +243,9 @@ class LoginScreenState extends State<LoginScreen>
     return new Padding(
       padding: const EdgeInsets.all(8.0),
       child: new TextFormField(
-        onSaved: (val) => _email = val,
+        onSaved: (val) => setState(() {
+          _email = val;
+        }),
         controller: _emailController,
         validator: (val) => judgeEmail(val),
         style: loginStyle,
@@ -217,7 +277,9 @@ class LoginScreenState extends State<LoginScreen>
       child: new TextFormField(
         obscureText: _obscureText,
         validator: (val) => judgePwd(val),
-        onSaved: (val) => _password = val,
+        onSaved: (val) => setState(() {
+          _password = val;
+        }),
         style: loginStyle,
         textInputAction: TextInputAction.done,
         keyboardType: TextInputType.text,

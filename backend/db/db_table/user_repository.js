@@ -1,6 +1,8 @@
 const dbSchema = `CREATE TABLE IF NOT EXISTS User(
         user_id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
         username TEXT NOT NULL,
+        firstname TEXT,
+        lastname TEXT,
         email TEXT NOT NULL UNIQUE,
         password TEXT NOT NULL,
         api_key TEXT NOT NULL UNIQUE
@@ -51,6 +53,12 @@ class UserRepository {
         return this.dao.get(
             `SELECT * FROM User WHERE user_id = ?`,
             [user_id]);
+    }
+
+    getByApiKey(api_key) {
+        return this.dao.get(
+            `SELECT * FROM User WHERE api_key = ?`,
+            [api_key]);
     }
 
     getAll() {

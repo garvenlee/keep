@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:keep/global/connectivity_status.dart';
 import 'package:keep/global/flush_status.dart';
 import 'package:keep/global/global_tool.dart';
 import 'package:keep/UI/Register/register_screen_presenter.dart';
+import 'package:provider/provider.dart';
 import 'note_logo.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -26,26 +28,37 @@ class RegisterScreenState extends State<RegisterScreen>
   bool _obscureText = true;
   String _username, _email, _password;
   RegisterScreenPresenter _presenter;
+  var connectionStatus;
 
   RegisterScreenState() {
     _presenter = new RegisterScreenPresenter(this);
+  }
+
+  @override
+  void dispose() {
+    _pass.dispose();
+    super.dispose();
   }
 
   void _submit() async {
     final form = _formKey.currentState;
 
     if (form.validate()) {
-      setState(() => _isLoading = true);
-      form.save();
-      await Future.delayed(Duration(seconds: 3));
-      _presenter.doRegister(_username, _email, _password);
+      if (connectionStatus == ConnectivityStatus.Available) {
+        setState(() => _isLoading = true);
+        form.save();
+        await Future.delayed(Duration(seconds: 3));
+        _presenter.doRegister(_username, _email, _password);
+      } else {
+        _showSnackBar('Please check your internet.');
+      }
     }
   }
 
-  // void _showSnackBar(String text) {
-  //   _scaffoldKey.currentState
-  //       .showSnackBar(new SnackBar(content: new Text(text)));
-  // }
+  void _showSnackBar(String text) {
+    _scaffoldKey.currentState
+        .showSnackBar(new SnackBar(content: new Text(text)));
+  }
 
   void _toggle() {
     setState(() {
@@ -80,6 +93,8 @@ class RegisterScreenState extends State<RegisterScreen>
     _registerCtx = context;
     var registerBtn = _buildBtn();
     var registerForm = _buildForm(registerBtn);
+    connectionStatus = Provider.of<ConnectivityStatus>(context);
+
     return new Scaffold(
         appBar: PreferredSize(
           preferredSize:
@@ -243,7 +258,7 @@ class RegisterScreenState extends State<RegisterScreen>
       padding: const EdgeInsets.all(8.0),
       child: new TextFormField(
           obscureText: true,
-          validator: (val) => judgePwd(val),
+          validator: (val) => judgeConfirmPwd(val, _pass.text),
           style: registerStyle,
           textInputAction: TextInputAction.done,
           keyboardType: TextInputType.text,

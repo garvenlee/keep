@@ -1,23 +1,49 @@
 /*jshint esversion: 6 */
 var express = require('express');
+var session = require('express-session');
 var querystring = require('querystring');
 var bodyParser = require('body-parser');
-// var multer = require('multer');
-var routeHandle = require('./routes/route_handle');
-// const AppDAO = require('./dao');
-// const UserRepository = require('./user_repository');
+var functools = require('./routes/tools');
+const JwtUtil = require('./tools/jwt');
 
 var app = express();
 var server = require("http").createServer(app);
 var io = require("socket.io").listen(server);
 
-// List of all connected users
-var connectedUsers = [];
-var lastTimestamp = 0; // 记录上一次发送信息的时间
-var usernames = ["Anonymous", "garvenlee", "jacklin", "sorry"]; //set the template engine ejs
+// set heartbeat pack
+io.set('heartbeat timeout', 4000);
+io.set('heartbeat interval', 2000);
+
+global.vfglobal = {
+    // 在线用户
+    allUser: [],
+    //所有的 token : userId
+    token_Map: {},
+    //保存所有的 userId ：socket 连接
+    socket_Map: {},
+    //前端是否登录
+    isLogin: -1,
+    MyLog: functools.MyLog,
+    //io
+    io: io,
+    // 消息漫游时长, 默认30天（时间戳）
+    expired_length: 30 * 24 * 60 * 60 * 1000
+};
+
+
+console.log(vfglobal.socket_Map);
+
+//set the template engine ejs
 app.set('view engine', 'ejs');
 //middlewares
 app.use(express.static('public'));
+app.use(session({
+    secret: 'mylittleCabin-secret',
+    resave: true, // 即使 session 没有被修改，也保存 session 值，默认为 true
+    cookie: { maxAge: 35 * 60 * 1000 }, //session和相应的cookie失效过期
+    saveUninitialized: true,
+    rolling: true //add 刷新页面 session 过期时间重置
+}));
 //Here we are configuring express to use body-parser as middle-ware.
 // app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.urlencoded({ extended: true, limit: "50mb", parameterLimit: 100000 }))
@@ -40,109 +66,33 @@ app.all('*', function(req, res, next) {
     }
 });
 
-//routes========================== need to stretch
-app.get('/', (req, res) => {
-    res.render('index');
-});
-
-app.get('/user/:email', (req, res) => {
-    console.log(req.params);
-    routeHandle.handleFriendsGet(res, req.params);
-});
-
-app.post('/user/login', (req, res) => {
-    routeHandle.handleLogin(res, req.body);
-});
-
-app.post('/user/register', (req, res) => {
-    routeHandle.handleRegister(res, req.body);
-});
-
-app.post('/user/reset', (req, res) => {
-    routeHandle.handleReset(res, req.body);
-});
-
-app.post('/user/forget', (req, res) => {
-    routeHandle.handleForget(res, req.body);
-});
-
-app.post('/image/upload', (req, res) => {
-    routeHandle.handleImageUpload(res, req.body);
+// token 验证
+app.use(function(req, res, next) {
+    // 我这里知识把登陆和注册请求去掉了，其他的多有请求都需要进行token校验
+    if (req.url != '/user/login' &&
+        req.url != '/user/register' &&
+        req.url != '/user/check' &&
+        req.url != '/user/reset') {
+        let token = req.headers.token;
+        let jwt = new JwtUtil(token);
+        let result = jwt.verifyToken();
+        // 如果考验通过就next，否则就返回登陆信息不正确
+        if (result == 'err') {
+            console.log(result);
+            res.send({ status: 403, msg: '登录已过期,请重新登录' });
+            // res.render('login.html');
+        } else {
+            next();
+        }
+    } else {
+        next();
+    }
 });
 
 
+require('./routes/router')(app);
+require('./routes/socket')(io);
 
-//Listen on port 3000
-// Declare which port server is listening too
-server.listen(42300);
+// Listen on port 3000
+server.listen(45390);
 console.log('Server started.');
-
-// const nsp = io.of("/chat");
-// // socket.io instantiation
-// nsp.on("connection", function(socket) {
-//     nsp.username = "Anonymous";
-//     console.log("someone connected");
-//     //listen on new_message
-//     nsp.on('send_message', (data) => {
-//         //broadcast the new message
-//         console.log('receive data.....');
-//         // console.log(data.message);
-//         io.sockets.emit('new_message', {message : data.message, username : nsp.username});
-//     });
-// });
-// nsp.emit("hi", "everyone!");
-
-
-//listen on every connection
-// io.on('connection', (socket) => {
-io.on('connect', (socket) => {
-    connectedUsers.push(socket);
-    console.log('New user connected');
-
-    //default username
-    socket.username = "Anonymous";
-    var i = connectedUsers.indexOf(socket) % 4;
-    socket.username = usernames[i];
-
-    //listen on change_username
-    socket.on('change_username', (data) => {
-        socket.username = data.username;
-    });
-
-    socket.on('send_info', (data) => {
-        // var numId = Number(data) % 4;
-        var numId = socket.id;
-        console.log("send_info======>" + numId);
-        // socket.username = usernames[numId];
-    });
-
-    //listen on new_message
-    socket.on('send_message', (stream) => {
-        //broadcast the new message
-        // console.log(data[0]);
-        console.log('receive data.....');
-        // nowTimestamp = Math.floor(Date.now() / 1000);
-        var timestampFlag = ((stream.timestamp - lastTimestamp) > 90);
-        console.log('timestampFlag:' + timestampFlag);
-        data = { "username": socket.username, "message": stream.message, "timestampFlag": timestampFlag };
-        console.log("====>" + data);
-        // console.log(data.message);
-        lastTimestamp = stream.timestamp;
-        console.log(lastTimestamp);
-        io.sockets.emit('new_message', data);
-        // io.sockets.emit('new_message', {message : data.message, username : socket.username});
-    });
-
-    //listen on typing
-    socket.on('typing', (data) => {
-        socket.broadcast.emit('typing', { username: socket.username });
-    });
-
-    socket.on('disconnect', function() {
-        console.log('Got disconnect!');
-
-        var i = connectedUsers.indexOf(socket);
-        console.log('=======>' + i);
-        connectedUsers.splice(i, 1);
-    });
-});
