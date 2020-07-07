@@ -1,5 +1,5 @@
-import 'package:keep/data/rest_ds.dart';
-import 'package:keep/utils/sputil.dart';
+import 'package:keep/service/rest_ds.dart';
+import 'package:keep/data/sputil.dart';
 
 abstract class ResetScreenContract {
   void onResetSuccess(String username);

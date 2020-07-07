@@ -1,95 +1,70 @@
-import 'dart:convert';
+import 'chat_message.dart';
+import 'group.dart';
+import 'group_client.dart';
+import 'friend.dart';
 
-// 用于本地消息缓存
 class Message {
-  int chatType;
-  String messageType;
-  String messageBody;
-  int creatorId;
-  int recipientId;
-  int recipientGroupId;
-  int isRead; // 判断是否是离线消息，未发出，服务器端表示是否接收
-  int createAt;
-  int expiredAt;
-
+  final int chatType;
+  final List<UserMessage> messages;
+  final Friend friend;
+  final Group group;
+  final Map<int, GroupClient> members;
+  int msgNum = -1;
+  int offlineMsgNum = -1;
+  int isOfflineFlag = -1;
   Message(
-      {this.chatType,
-      this.messageType,
-      this.messageBody,
-      this.creatorId,
-      this.recipientId,
-      this.recipientGroupId,
-      this.isRead,
-      this.createAt,
-      this.expiredAt});
+      {this.chatType, this.messages, this.friend, this.group, this.members});
 
-  static Message fromMap(Map map) {
-    print(map['creator_id'].runtimeType);
-    return new Message(
-        chatType: map['chat_type'] as int,
-        messageType: map["message_type"] as String,
-        messageBody: map["message_body"] as String,
-        creatorId: map["creator_id"] as int,
-        recipientId: map["recipient_id"] ?? 0,
-        recipientGroupId: map["recipient_group_id"] ?? 0,
-        isRead: map['is_read'] ?? 1,
-        createAt: map["create_at"] as int,
-        expiredAt: map["expired_at"] as int);
+  get to => chatType == 1 ? friend?.userId : group?.roomId;
+  get avatar => chatType == 1 ? friend?.avatar : group?.roomAvatarObj;
+  get name => chatType == 1 ? friend?.username : group?.roomName;
+  get userId => chatType == 1 ? friend?.userId : group?.roomId;
+  get msgHintNum => calHintNum();
+  get offlineFlag {
+    if (isOfflineFlag == 1) return true;
+    bool isOffline = false;
+    for (int i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].isOnline == 0) {
+        isOffline = true;
+        isOfflineFlag = 1;
+        break;
+      }
+    }
+    if (!isOffline) isOfflineFlag = 0;
+    return isOffline;
   }
 
-  Map<String, dynamic> toMap() => {
-        "chat_type": chatType,
-        "message_type": messageType,
-        "message_body": messageBody,
-        "creator_id": creatorId,
-        "recipient_id": recipientId,
-        "recipient_group_id": recipientGroupId ?? 0,
-        "is_read": isRead ?? 1,
-        "create_at": createAt,
-        "expired_at": expiredAt
-      };
-
-  static Message messageFromJson(String str) {
-    final jsonData = json.decode(str);
-    print('message from json processing.......................');
-    return Message.fromMap(jsonData);
+  int calHintNum() {
+    if (msgNum >= 0) return msgNum;
+    int num = 0;
+    for (int i = 0; i < messages.length; i++) {
+      if (messages[i].isRead == 0 &&
+          ((messages[i].chatType == 1 && messages[i].creatorId == userId) ||
+              messages[i].chatType == 2 && messages[i].creatorId != userId))
+        num += 1;
+    }
+    msgNum = num;
+    // print(msgNum);
+    return num;
   }
 
-  static String messageToJson(Message data) {
-    final dyn = data.toMap();
-    return json.encode(dyn);
-  }
+  get offlineMsgHintNum => calOfflineHintNum();
 
-  Map toJson() {
-    print('toJson');
-    return {
-      "chat_type": chatType,
-      "message_type": messageType,
-      "message_body": messageBody,
-      "creator_id": creatorId,
-      "recipient_id": recipientId,
-      "recipient_group_id": (recipientGroupId ?? 0),
-      "is_read": (isRead ?? 1),
-      "create_at": createAt,
-      "expired_at": expiredAt
-    };
-  }
-
-  factory Message.fromJson(dynamic json) {
-    return Message(
-        chatType: json['chat_type'] as int,
-        messageType: json["message_type"] as String,
-        messageBody: json["message_body"] as String,
-        creatorId: json["creator_id"] as int,
-        recipientId: json["recipient_id"] as int,
-        recipientGroupId: json["recipient_group_id"] as int,
-        isRead: json['is_read'] as int,
-        createAt: json["create_at"] as int,
-        expiredAt: json["expired_at"] as int);
+  int calOfflineHintNum() {
+    if (offlineMsgNum >= 0) return offlineMsgNum;
+    int num = 0;
+    for (int i = 0; i < messages.length; i++) {
+      if (messages[i].isOnline == 0) num += 1;
+    }
+    offlineMsgNum = num;
+    return num;
   }
 
   @override
   String toString() {
-    return '{ ${this.messageType}, ${this.messageBody}, ${this.creatorId}, ${this.recipientId}, ${this.createAt}, ${this.expiredAt} }';
+    print('chatType: ${this.chatType}');
+    print('friend is null: ${this.friend == null}');
+    print('group is null: ${this.group == null}');
+    return '{ ${this.chatType}, ${this.messages.length} }';
   }
 }

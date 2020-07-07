@@ -1,4 +1,4 @@
-import 'package:keep/data/rest_ds.dart';
+import 'package:keep/service/rest_ds.dart';
 import 'package:keep/models/user.dart';
 
 abstract class LoginScreenContract {

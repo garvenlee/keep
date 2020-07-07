@@ -81,6 +81,43 @@ async function dirExists(dir) {
     return mkdirStatus;
 }
 
+async function saveImage(timestamp, imgData, field) {
+    // 保存群头像数据
+    console.log('get data from client...........');
+
+    // handle timestamp used to get the path to save image
+    var date_ob = new Date(timestamp).toLocaleString().split(' ');
+    // console.log(date_ob);
+    var date_prefix = date_ob[0].split('-');
+    var date_postfix = date_ob[1].split(':');
+    var year = date_prefix[0];
+    var month = date_prefix[1]
+    var day = date_prefix[2];
+
+    var hour = date_postfix[0];
+
+    var img_dir = path.join('./db/images/' + field, year, month, day, hour);
+    var img_name = timestamp.toString() + '.jpg';
+    await dirExists(img_dir);
+
+    var img_path = path.join(img_dir, img_name);
+    var image = imgData.replace(/^data:image\/\w+;base64,/, "");
+    var realFile = Buffer.from(image, "base64");
+    // console.log(img_path);
+
+    // 保存图片
+    fs.writeFile(img_path, realFile, (err) => {
+        if (err) {
+            console.log('saving picture error....');
+            console.log('=======>' + img_path);
+        } else {
+            console.log('saving picture success.');
+        }
+    });
+
+    return img_path;
+}
+
 
 // function handleFriendsList(friend)
 var MyLog = function(msg, val2) {
@@ -96,5 +133,6 @@ module.exports = {
     generate_key: generate_key,
     dirExists: dirExists,
     generateUUID: generateUUID,
+    saveImage: saveImage,
     MyLog: MyLog
 };

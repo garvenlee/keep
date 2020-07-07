@@ -1,4 +1,4 @@
-import 'package:keep/data/rest_ds.dart';
+import 'package:keep/service/rest_ds.dart';
 // import 'package:keep/models/user.dart';
 
 abstract class RegisterScreenContract {
@@ -13,8 +13,8 @@ class RegisterScreenPresenter {
   RegisterScreenPresenter(this._view);
 
   // 发起请求并用于捕捉异常
-  doRegister(String username, String email, String password) {
-    api.register(username, email, password).then((Object hintTxt) {
+  doRegister(String username, String email, String password, String phone) {
+    api.register(username, email, password, phone).then((Object hintTxt) {
       _view.onRegisterSuccess(hintTxt.toString());
       print('Register success');
     }).catchError((Object error) {

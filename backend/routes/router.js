@@ -7,11 +7,6 @@ var router = function(app) {
         res.render('index');
     });
 
-    app.get('/user/:userId', (req, res) => {
-        console.log(req.params);
-        routeHandle.handleFriendsGet(res, req.params);
-    });
-
     app.post('/user/login', (req, res) => {
         routeHandle.handleLogin(res, req.body);
     });
@@ -32,8 +27,54 @@ var router = function(app) {
         routeHandle.handleImageUpload(res, req.body);
     });
 
-    app.post('/addContacts', (req, res) => {
-        routeHandle.handleMakeFriendReq(res, req.body);
+
+    //////////////////////////
+    app.get('/note/get/:userId', (req, res) => {
+        // console.log(req.params);
+        routeHandle.handleNotesGet(res, req.params);
+    });
+
+    app.post('/note/sync', (req, res) => {
+        routeHandle.handleNoteSync(res, req.body);
+    });
+
+    app.post('/note/syncs', (req, res) => {
+        routeHandle.handleNotesSync(res, req.body);
+    });
+
+    //////////////////////////
+
+    app.get('/todo/get/:userId', (req, res) => {
+        // console.log(req.params);
+        routeHandle.handleNotesGet(res, req.params);
+    });
+
+    app.post('/todo/sync', (req, res) => {
+        routeHandle.handleTodoSync(res, req.body);
+    });
+
+    app.post('/todo/syncs', (req, res) => {
+        routeHandle.handleTodosSync(res, req.body);
+    });
+
+    ///////////////////////////
+
+    app.get('/chat/friends/get/:userId', (req, res) => {
+        // console.log(req.params);
+        routeHandle.handleFriendsGet(res, req.params);
+    });
+
+    app.post('/chat/group/get/', (req, res) => {
+        routeHandle.handleGroupGet(res, req.body);
+    });
+
+    app.get('/chat/groups/get/:userId', (req, res) => {
+        // console.log(req.params);
+        routeHandle.handleGroupsGet(res, req.params);
+    });
+
+    app.get('/chat/messages/get/:userId', (req, res) => {
+        routeHandle.handleMessagesGet(res, req.params);
     });
 }
 

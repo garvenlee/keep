@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:keep/data/rest_ds.dart';
+import 'package:keep/service/rest_ds.dart';
 
 abstract class SettingScreenContract {
   void onUploadSuccess(String hintTxt);

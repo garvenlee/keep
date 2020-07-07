@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:keep/global/connectivity_status.dart';
-import 'package:keep/global/user_pic.dart';
-import 'package:keep/global/global_tool.dart';
-import 'package:keep/global/indicator_dot.dart';
 import 'package:provider/provider.dart';
+import 'package:keep/utils/utils_class.dart' show ConnectivityStatus;
+import 'package:keep/widget/user_pic.dart';
+import 'package:keep/utils/tools_function.dart';
+import 'package:keep/widget/indicator_dot.dart';
 
 class UserPanel extends StatefulWidget {
   final String username;
   final String email;
-  final String avatar;
+  final Object avatar;
 
   UserPanel({this.username, this.email, this.avatar, Key key})
       : super(key: key);
@@ -19,7 +19,7 @@ class UserPanel extends StatefulWidget {
 
 class UserPanelState extends State<UserPanel> {
   var connectionStatus;
-  String _avatar;
+  Object _avatar;
   String _username;
 
   @override
@@ -30,32 +30,18 @@ class UserPanelState extends State<UserPanel> {
   }
 
   void setUsername(String username) {
-    setState(() {
-      _username = username;
-    });
+    setState(() => _username = username);
   }
 
-  void setAvatar(String avatar) {
-    setState(() {
-      _avatar = avatar;
-    });
+  void setAvatar(Object avatar) {
+    setState(() => _avatar = avatar);
   }
 
   @override
   Widget build(BuildContext context) {
-    connectionStatus = Provider.of<ConnectivityStatus>(context);
-    String status;
-    if (connectionStatus == ConnectivityStatus.Available) {
-      status = 'active';
-    } else {
-      status = 'inactive';
-    }
     return Container(
         height: 100.0,
-        decoration: BoxDecoration(
-          color: Colors.blueGrey,
-          // border: Border.all(color: Colors.red)
-        ),
+        decoration: BoxDecoration(color: Colors.blueGrey),
         child: Row(
             // crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.start,
@@ -66,19 +52,26 @@ class UserPanelState extends State<UserPanel> {
               ),
               Padding(
                   padding: EdgeInsets.only(top: 30.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Container(
+                  child: Consumer<ConnectivityStatus>(
+                      builder: (context, connectionStatus, child) {
+                        return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              child,
+                              DotIndicator(
+                                  status: connectionStatus ==
+                                          ConnectivityStatus.Available
+                                      ? 'active'
+                                      : 'inactive')
+                            ]);
+                      },
+                      child: Container(
                           padding: EdgeInsets.only(bottom: 5.0),
                           child: Text(capitalize(_username),
                               style: TextStyle(
                                   fontSize: 20.0,
                                   color: Colors.white,
-                                  fontWeight: FontWeight.w600))),
-                      buildDotIndicator(status)
-                    ],
-                  ))
+                                  fontWeight: FontWeight.w600)))))
             ]));
   }
 
@@ -109,8 +102,7 @@ class UserPanelState extends State<UserPanel> {
               )
             ],
           ),
-          child:
-              CircleAvatar(radius: 32.0, backgroundImage: txt2Image(_avatar)));
+          child: CircleAvatar(radius: 32.0, backgroundImage: _avatar));
     }
   }
 }

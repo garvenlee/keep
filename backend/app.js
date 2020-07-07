@@ -23,15 +23,12 @@ global.vfglobal = {
     socket_Map: {},
     //前端是否登录
     isLogin: -1,
-    MyLog: functools.MyLog,
-    //io
+    MyLog: functools.MyLog, //io
     io: io,
     // 消息漫游时长, 默认30天（时间戳）
     expired_length: 30 * 24 * 60 * 60 * 1000
 };
 
-
-console.log(vfglobal.socket_Map);
 
 //set the template engine ejs
 app.set('view engine', 'ejs');
@@ -66,9 +63,10 @@ app.all('*', function(req, res, next) {
     }
 });
 
+
 // token 验证
 app.use(function(req, res, next) {
-    // 我这里知识把登陆和注册请求去掉了，其他的多有请求都需要进行token校验
+    // 我这里只是把登陆和注册请求去掉了，其他的多有请求都需要进行token校验
     if (req.url != '/user/login' &&
         req.url != '/user/register' &&
         req.url != '/user/check' &&
@@ -93,6 +91,8 @@ app.use(function(req, res, next) {
 require('./routes/router')(app);
 require('./routes/socket')(io);
 
-// Listen on port 3000
-server.listen(45390);
-console.log('Server started.');
+// Listen on port 42300
+var ip = 42300;
+server.listen(ip, function callback() {
+    console.log('Server started to listen port ' + ip);
+});

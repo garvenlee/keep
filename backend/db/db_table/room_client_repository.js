@@ -3,7 +3,7 @@ const dbSchema = `
     client_id INTEGER PRIMARY KEY AUTOINCREMENT,
     room_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
-    timestamp INTEGER NOT NULL,
+    join_at INTEGER NOT NULL,
     FOREIGN KEY (room_id) REFERENCES Room(room_id) ON UPDATE CASCADE ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES User(user_id) ON UPDATE CASCADE ON DELETE CASCADE
     )`;
@@ -19,10 +19,10 @@ class RoomClientRepository {
         return this.dao.run(dbSchema);
     }
 
-    create(room_id, user_id, timestamp) {
-        timestamp = timestamp || Math.floor(Date.now() / 1000);
-        return this.dao.run(`INSERT INTO Room (room_id, user_id, timestamp) VALUES (?, ?, ?)`,
-            [room_id, user_id, timestamp]);
+    create(room_id, user_id, join_at) {
+        join_at = join_at || Math.floor(Date.now() / 1000);
+        return this.dao.run(`INSERT INTO RoomClient (room_id, user_id, join_at) VALUES (?, ?, ?)`,
+            [room_id, user_id, join_at]);
     }
 
     delete(room_id, user_id) {
@@ -37,9 +37,9 @@ class RoomClientRepository {
             [user_id]);
     }
 
-    getChatList(room_id) {
-        return this.dao.run(
-            `SELECT * FROM Room WHERE room_id = ?`,
+    getMemberList(room_id) {
+        return this.dao.all(
+            `SELECT * FROM RoomClient WHERE room_id = ?`,
             [room_id]);
     }
 }

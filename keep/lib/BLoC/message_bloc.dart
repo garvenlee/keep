@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'package:keep/data/repository/message_repository.dart';
+import 'package:keep/models/chat_message.dart';
 import 'package:keep/models/message.dart';
+import 'package:keep/BLoC_provider/bloc_provider.dart';
 // import 'package:keep/data/provider/user_provider.dart';
 // import 'package:keep/data/provider/friend_provider.dart';
 
-class MessageBloc {
+class MessageBloc extends BlocBase {
   //Get instance of the Repository
   final _msgRepository = MessageRepository();
 
@@ -12,32 +14,51 @@ class MessageBloc {
   //the state of our stream of data like adding
   //new data, change the state of the stream
   //and broadcast it to observers/subscribers
-  final _msgController = StreamController<Map<int, List<Message>>>.broadcast();
+  final _msgController = StreamController<List<Message>>.broadcast();
 
-  get messages => _msgController.stream;
+  Stream<List<Message>> get messages => _msgController.stream;
 
   MessageBloc() {
     getMessages();
   }
 
-  getMessages({String whereString, String query}) async {
-    //sink is a way of adding data reactively to the stream
-    //by registering a new event
-    _msgController.sink.add(await _msgRepository.getAllMessages(
-        whereString: whereString, query: query));
+  getMessages() async {
+    _msgController.sink.add(await _msgRepository.getAllMessages());
   }
 
-  addMessage(Message msg) async {
+  addMessage(UserMessage msg) async {
     await _msgRepository.insertMessage(msg);
-    getMessages();
+    // getMessages();
   }
+
+  addAllMessages(List<UserMessage> msg) async {
+    await _msgRepository.insertAllMessage(msg);
+    // getMessages();
+  }
+
+  getMessage({int createAt, int creatorId}) async =>
+      await _msgRepository.getMessage(createAt: createAt, creatorId: creatorId);
 
   deleteMessage(int createAt, int creatorId) async {
-    _msgRepository.deleteMessage(createAt, creatorId);
-    getMessages();
+    await _msgRepository.deleteMessage(createAt, creatorId);
+    // getMessages();
   }
 
-  dispose() {
+  deleteMessages(List<UserMessage> messages) async {
+    await _msgRepository.deleteMessages(messages);
+  }
+
+  // isRead
+  updateMessage({UserMessage msg}) async {
+    await _msgRepository.updateMessage(msg: msg);
+    // getMessages();
+  }
+
+  // updateMessageOverIsRead(int chatType, int recipientId) async {
+  //   await _msgRepository.updateMessageOverIsRead(chatType: chatType, recipientId: recipientId);
+  // }
+
+  void dispose() {
     _msgController.close();
   }
 }

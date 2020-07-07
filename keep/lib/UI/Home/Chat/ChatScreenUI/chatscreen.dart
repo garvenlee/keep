@@ -1,52 +1,63 @@
-import 'package:flutter/material.dart';
-import 'package:adhara_socket_io/adhara_socket_io.dart';
-import 'package:keep/BLoC/message_bloc.dart';
-import 'package:keep/data/provider/message_provider.dart';
-import 'package:keep/utils/event_util.dart';
-import 'package:keep/utils/socket_util.dart';
-import 'package:keep/data/provider/user_provider.dart';
-import 'package:keep/global/connectivity_status.dart';
-import 'package:keep/global/global_tool.dart';
-import 'package:keep/models/message.dart';
 import 'package:provider/provider.dart';
-import 'message_item.dart';
+import 'package:after_layout/after_layout.dart';
+import 'package:adhara_socket_io/adhara_socket_io.dart';
+import 'package:flutter/material.dart';
 
+import 'package:keep/service/socket_util.dart';
+import 'package:keep/BLoC/message_bloc.dart';
+import 'package:keep/data/provider/user_provider.dart';
+import 'package:keep/utils/utils_class.dart' show ConnectivityStatus;
+import 'package:keep/utils/event_util.dart';
+import 'package:keep/utils/tools_function.dart';
+import 'package:keep/models/chat_message.dart';
+import 'package:keep/models/friend.dart';
+import 'package:keep/models/group.dart';
+import 'package:keep/models/group_client.dart';
+import 'package:keep/settings/selection_config.dart';
+
+import 'chat_item.dart';
+
+// 传参应该是friend/group + _friends
 class ChatScreen extends StatefulWidget {
   final int userType; // 1 is p2p, 2 is chatroom
-  final String username;
-  final String toUsername; // required when p2p
-  final int toUserId;
-  final String toRoomname; // required when group
-  final List<Message> onlineMessage;
-  final List<Message> offlineMessage;
+  // final String username;
+  // final Object avatar;
+  final Friend friend;
+  final Group group;
+  final Map<int, GroupClient> members;
+  final List<UserMessage> messages;
   ChatScreen(
       {this.userType,
-      this.username,
-      this.toUsername,
-      this.toUserId,
-      this.toRoomname,
-      this.onlineMessage,
-      this.offlineMessage});
+      // this.username,
+      // this.avatar,
+      this.friend,
+      this.group,
+      this.members,
+      this.messages,
+      int getData});
 
   @override
   State createState() => new ChatScreenState();
 }
 
-class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
+class ChatScreenState extends State<ChatScreen>
+    with TickerProviderStateMixin, AfterLayoutMixin<ChatScreen> {
   // additinal controller
   bool _isobscure = false;
   // bool _isComposing = false;
-  final ScrollController scrollController  = new ScrollController();
-  final TextEditingController textEditingController = new TextEditingController();
-  final MessageBloc bloc = MessageBloc();
+  final ScrollController scrollController = new ScrollController();
+  final TextEditingController textEditingController =
+      new TextEditingController();
+  final msgBloc = new MessageBloc();
 
   // my info
   final String apiKey = UserProvider.getApiKey();
   final int userId = UserProvider.getUserId();
+  final Object avatar = UserProvider().userAvatar;
+  final String username = UserProvider().username;
 
   // global info - context and netStatus
   BuildContext _ctx;
-  var connectionStatus;
   SocketIO _socket;
   String dropdownValue = 'One';
 
@@ -57,35 +68,102 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   int lastTimestampSec = 0;
 
   // message info
-  List<Message> _messages = <Message>[];
+  List<UserMessage> _messages = <UserMessage>[];
   List<ChatItemWidget> _messageItems = <ChatItemWidget>[];
-  List<Message> _offlineMsg = <Message>[];
+  List<UserMessage> _offlineMsg = <UserMessage>[];
   List<int> offlineDeleteId = [];
   List<int> onlineDelateId = [];
   int offlineMsgLength = 0;
+  int chatItemLength = 0;
+  int offlineNumCal = 0;
+  // bool updateFlag = false;
 
   initSocket() async {
     return await new SocketUtil().socket;
   }
 
-  @override
-  void initState() {
-    super.initState();
-    initSocket().then((socket) => _socket = socket);
+  void _unfocus() {
+    FocusScopeNode currentFocus = FocusScope.of(_ctx);
+    if (!currentFocus.hasPrimaryFocus) {
+      print('unfocus');
+      currentFocus.unfocus();
+    }
+  }
 
-    toUserId = widget.toUserId;
-
-    // print('from message to chatItem.................');
-    setChatItems();
-
-    bus.on('delete_chat_item', (id) => deleteMessage(id));
+  void newMessage({UserMessage msg, String creatorName}) {
+    int timestampSec = (msg.createAt / 1000).floor();
+    // whether display the timestamp
+    bool timestampFlag = (timestampSec - lastTimestampSec) > 600;
+    ChatItemWidget chatMessage = new ChatItemWidget(
+        id: chatItemLength,
+        username: creatorName,
+        avatar: msg.creatorId == toUserId
+            ? widget.userType == 1
+                ? widget.friend.avatar
+                : widget.members[toUserId].userAvatarObj
+            : avatar,
+        text: msg.messageBody,
+        animationController: new AnimationController(
+            duration: new Duration(milliseconds: 700), //new
+            vsync: this),
+        isSelf: msg.creatorId == userId,
+        timestampFlag: timestampFlag,
+        timestamp: msg.createAt,
+        success: true); // forward the message at the chatscreen
+    //used to rebuild our widget
+    setState(() {
+      _messageItems.add(chatMessage);
+      lastTimestampSec = timestampSec;
+      chatItemLength = chatItemLength + 1;
+      // updateFlag = true;
+      chatMessage.animationController.forward();
+    });
   }
 
   @override
-  void setState(fn) {
-    if (mounted) {
-      super.setState(fn);
+  void initState() {
+    super.initState();
+    print('chat type is ${widget.userType}');
+    toUserId =
+        widget.userType == 1 ? widget.friend.userId : widget.group.roomId;
+    print('群组ID： $toUserId');
+    print(userId);
+    print('群组成员个数： ${widget.members}');
+    // print("chatscreen toUserId is $toUserId");
+    _messages = widget.messages;
+    if (_messages.length > 0)
+      lastTimestampSec =
+          (_messages[_messages.length - 1].createAt / 1000).floor();
+    else
+      lastTimestampSec = 0;
+
+    // print('from message to chatItem.................');
+    widget.userType == 1 ? setUserChatItems() : setGroupChatItems();
+  }
+
+  void chatCallback(stream) {
+    print(stream['chat_type']);
+    print(widget.userType);
+    if (stream['chat_type'] == widget.userType &&
+        (stream['recipient_id'] == userId ||
+            stream['recipient_id'] == toUserId)) {
+      UserMessage msg = UserMessage.fromMap(stream);
+      newMessage(msg: msg, creatorName: stream["creator_name"]);
+      msgBloc.addMessage(msg);
+    } else {
+      print('use homepage socket on');
+      // stream['context'] = context;
+      onChatCallback(stream);
     }
+  }
+
+  @override
+  void afterFirstLayout(BuildContext context) {
+    // Calling the same function "after layout" to resolve the issue.
+    initSocket().then((socket) {
+      _socket = socket;
+      _socket.on('chat', chatCallback);
+    });
   }
 
   @override
@@ -93,12 +171,14 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     textEditingController.dispose();
     scrollController.dispose();
     for (ChatItemWidget message in _messageItems)
-      message.animationController.dispose();
+      message.animationController?.dispose();
+    _socket.off('chat', chatCallback);
+    bus.on('delete_chat_item', (id) => deleteMessage(id));
+    msgBloc.dispose();
     super.dispose();
   }
 
-
-  void _submit() {
+  void _submit(connectionStatus) {
     //Check if the textfield has text or not
     if (textEditingController.text.isNotEmpty) {
       // msg send success or fail
@@ -107,14 +187,15 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       int timestamp = DateTime.now().millisecondsSinceEpoch;
       int timestampSec = (timestamp / 1000).floor();
       // whether display the timestamp
-      bool timestampFlag = (timestampSec - lastTimestampSec) > 120;
+      bool timestampFlag = (timestampSec - lastTimestampSec) > 600;
 
-      Message msg = new Message(
-        chatType: 1,
+      UserMessage msg = new UserMessage(
+        chatType: widget.userType,
         messageType: 'text',
         messageBody: textEditingController.text,
         creatorId: userId,
         recipientId: toUserId,
+        recipientGroupId: toUserId,
         createAt: timestamp,
         expiredAt: timestamp + 30 * 24 * 60 * 60 * 1000,
       );
@@ -124,18 +205,28 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         sendMessage(timestamp);
         success = true;
         // save message
-        print('add msg in Message Table');
-        bloc.addMessage(msg);
+        // print('add msg in UserMessage Table');
+        msgBloc.addMessage(msg);
+        // MessageProvider().newMessage(msg);
       } else {
         // if offline, save the message waiting to send again
-        print('save offline message......');
-        MessageProvider.saveMessage(msg);
+        // print('save offline message......');
+        msg.isOnline = 0;
+        msgBloc.addMessage(msg);
+        setState(() => offlineNumCal += 1);
+        // MessageProvider.saveMessage(msg);
       }
-      print('insert into _messageslist');
-
+      // print('insert into _messageslist');
+      // print(chatItemLength);
       // message item
       ChatItemWidget chatMessage = new ChatItemWidget(
-          username: widget.username,
+          id: chatItemLength,
+          username: username,
+          avatar: msg.creatorId == toUserId
+              ? widget.userType == 1
+                  ? widget.friend.avatar
+                  : widget.members[toUserId].userAvatarObj
+              : avatar,
           text: textEditingController.text,
           animationController: new AnimationController(
               duration: new Duration(milliseconds: 700), //new
@@ -146,8 +237,10 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           success: success); // forward the message at the chatscreen
       setState(() {
         //used to rebuild our widget
-        _messageItems.insert(0, chatMessage);
+        _messageItems.add(chatMessage);
         lastTimestampSec = timestampSec;
+        chatItemLength = chatItemLength + 1;
+        // updateFlag = true;
       });
       chatMessage.animationController.forward();
       textEditingController.clear();
@@ -155,12 +248,14 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   }
 
   void sendMessage(int timestamp) {
-    print('send msg..................');
-    _socket.emit("chat", [
+    // print('send msg..................');
+    String chatType = widget.userType == 1 ? 'chat' : 'GroupChat';
+    _socket.emit(chatType, [
       {
-        'chat_type': 1,
+        'chat_type': widget.userType,
         'message_type': 'text',
         'message_body': textEditingController.text,
+        'creator_name': username,
         'creator_id': this.userId,
         'recipient_id': toUserId,
         'create_at': timestamp,
@@ -172,6 +267,8 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   void deleteMessage(int id) {
     setState(() {
+      print('delete item....................');
+      // updateFlag = true;
       if (id < this.offlineMsgLength) {
         int indicatorId = 0;
         for (final int val in offlineDeleteId) {
@@ -184,7 +281,7 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         // 考虑前面删除项的影响，更正索引
         int realId = id - indicatorId;
         _messageItems.removeAt(realId);
-        MessageProvider.delete(_offlineMsg[realId].createAt);
+        // MessageProvider.delete(_offlineMsg[realId].createAt);
         _offlineMsg.removeAt(id - indicatorId);
       } else {
         int indicatorId = offlineDeleteId.length;
@@ -200,83 +297,120 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         int realId2 = realId1 - offlineMsgLength + offlineDeleteId.length;
         // int realId2 = id - offlineMsgLength - (indicatorId - offlineDeleteId.length);
         _messageItems.removeAt(realId1);
-        bloc.deleteMessage(
+        msgBloc.deleteMessage(
             _messages[realId2].createAt, _messages[realId2].creatorId);
         _messages.removeAt(realId2);
       }
+      chatItemLength = chatItemLength - 1;
     });
   }
 
-  void setChatItems() {
-    _messages = widget.onlineMessage;
-    if (_messages.length > 0) {
-      _messages.sort((left, right) => (left.createAt > right.createAt ? 0 : 1));
-    }
-    List<Message> allMsgs;
-    if (widget.offlineMessage.length == 0) {
-      allMsgs = MessageProvider.getMessageByReId(toUserId);
-    } else {
-      allMsgs = widget.offlineMessage;
-    }
-    _offlineMsg = allMsgs;
-    offlineMsgLength = allMsgs.length;
-    allMsgs.addAll(_messages);
+  void setUserChatItems() {
+    // print('set user messages==============>');
+    // print(allMsgs.length);
     List<ChatItemWidget> messageItems = <ChatItemWidget>[];
-    allMsgs.asMap().forEach((index, msg) {
+    int lastTimestamp = _messages.length > 0 ? _messages[0].createAt : 0;
+    // bool flag;
+    _messages.asMap().forEach((index, msg) {
+      if (msg.isRead == 0) {
+        // print('need to update isRead field');
+        msgBloc.updateMessage(msg: msg);
+        // updateFlag = true;
+      }
       messageItems.add(new ChatItemWidget(
           id: index,
           username:
-              msg.creatorId == toUserId ? widget.toUsername : widget.username,
+              msg.creatorId == toUserId ? widget.friend.username : username,
+          avatar: msg.creatorId == toUserId ? widget.friend.avatar : avatar,
           text: msg.messageBody,
-          animationController: new AnimationController(
-              duration: new Duration(milliseconds: 700), //new
-              vsync: this),
           isSelf: msg.creatorId == this.userId,
-          timestampFlag: false,
+          timestampFlag:
+              ((msg.createAt - lastTimestamp) > 600000) || index == 0,
           timestamp: msg.createAt,
-          success: msg.isRead == 1));
+          success: msg.isOnline == 1));
+      lastTimestamp = msg.createAt;
     });
     _messageItems = messageItems;
+    chatItemLength = _messageItems.length;
+    // print(chatItemLength);
+  }
+
+  void setGroupChatItems() {
+    List<ChatItemWidget> messageItems = <ChatItemWidget>[];
+    int lastTimestamp = _messages.length > 0 ? _messages[0].createAt : 0;
+    _messages.asMap().forEach((index, msg) {
+      if (msg.isRead == 0) {
+        msgBloc.updateMessage(msg: msg);
+        // updateFlag = true;
+      }
+      messageItems.add(new ChatItemWidget(
+          id: index,
+          username: msg.creatorId == toUserId
+              ? widget.members[toUserId].username
+              : username,
+          avatar: msg.creatorId == toUserId
+              ? widget.members[toUserId].userAvatarObj
+              : avatar,
+          text: msg.messageBody,
+          isSelf: msg.creatorId == this.userId,
+          timestampFlag:
+              ((msg.createAt - lastTimestamp) > 600000) || index == 0,
+          timestamp: msg.createAt,
+          success: msg.isOnline == 1));
+    });
+    _messageItems = messageItems;
+    chatItemLength = _messageItems.length;
+    // print(chatItemLength);
+  }
+
+  Future<bool> _onPop(BuildContext context) {
+    // Navigator.pop(context, updateFlag);
+    return Future.value(true);
   }
 
   @override
   Widget build(BuildContext context) {
     _ctx = context;
-    connectionStatus = Provider.of<ConnectivityStatus>(context);
-    return new Scaffold(
-        // leads input bar not padding
-        // resizeToAvoidBottomPadding: false,
-        body: SafeArea(
-            child: new Column(
-      children: <Widget>[
-        buildHeader(),
-        new Expanded(
-          child: new ListView.builder(
-            // physics: const NeverScrollableScrollPhysics(),
-            shrinkWrap: true,
-            controller: scrollController,
-            padding: new EdgeInsets.all(8.0),
-            reverse: true,
-            itemBuilder: (_, int index) {
-              var msgItem = _messageItems[index];
-              msgItem.animationController.forward();
-              return msgItem;
-            },
-            itemCount: _messageItems.length,
-          ),
-        ),
-        new Divider(
-          height: 1.0,
-        ),
-        new Container(
-          height: 54,
-          decoration: new BoxDecoration(
-            color: Theme.of(context).cardColor,
-          ),
-          child: _textComposerWidget(),
-        )
-      ],
-    )));
+    bus.on('delete_chat_item', (id) => deleteMessage(id));
+    return WillPopScope(
+        onWillPop: () => _onPop(context),
+        child: GestureDetector(
+            onTap: () => _unfocus(),
+            child: new Scaffold(
+                // leads input bar not padding
+                // resizeToAvoidBottomPadding: false,
+                body: SafeArea(
+                    child: new Column(
+              children: <Widget>[
+                buildHeader(),
+                new Expanded(
+                  child: new ListView.builder(
+                    // physics: const NeverScrollableScrollPhysics(),
+                    shrinkWrap: true,
+                    controller: scrollController,
+                    padding: new EdgeInsets.all(8.0),
+                    reverse: true,
+                    itemBuilder: (_, int index) {
+                      int idx = _messageItems.length - 1 - index;
+                      // print(idx);
+                      var msgItem = _messageItems[idx];
+                      // msgItem.animationController.forward();
+                      return msgItem;
+                    },
+                    itemCount: _messageItems.length,
+                  ),
+                ),
+                new Divider(
+                  height: 1.0,
+                ),
+                new Container(
+                    height: 54,
+                    decoration: new BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                    ),
+                    child: _textComposerWidget())
+              ],
+            )))));
   }
 
   Widget buildStatusBar() {
@@ -291,26 +425,19 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             child: Container(
               height: 40.0,
               child: TextField(
-                maxLines: 10,
-                decoration: InputDecoration(
-                  contentPadding: EdgeInsets.all(10.0),
-                  hintText: "Send a message",
-                  focusedBorder: OutlineInputBorder(
-                    borderSide:
-                        BorderSide(color: Colors.greenAccent, width: 1.0),
+                  maxLines: 10,
+                  decoration: InputDecoration(
+                    contentPadding: EdgeInsets.all(10.0),
+                    hintText: "Send a message",
+                    focusedBorder: OutlineInputBorder(
+                      borderSide:
+                          BorderSide(color: Colors.greenAccent, width: 1.0),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.grey, width: 1.0),
+                    ),
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.grey, width: 1.0),
-                  ),
-                ),
-                controller: textEditingController,
-                // onChanged: (String text) {
-                //   setState(() {
-                //     _isComposing = text.length > 0;
-                //   });
-                // },
-                // onSubmitted: _handleSubmitted,
-              ),
+                  controller: textEditingController),
             )));
   }
 
@@ -349,17 +476,20 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   }
 
   Widget buildSendButton() {
-    return new Container(
-        // margin: const EdgeInsets.symmetric(horizontal: 20.0),
-        height: 45.0,
-        child: FloatingActionButton(
-          backgroundColor: Colors.deepPurple,
-          onPressed: _submit,
-          child: Icon(
-            Icons.send,
-            size: 25,
-          ),
-        ));
+    return Consumer<ConnectivityStatus>(
+        builder: (context, connectionStatus, _) {
+      return new Container(
+          // margin: const EdgeInsets.symmetric(horizontal: 20.0),
+          height: 45.0,
+          child: FloatingActionButton(
+            backgroundColor: Colors.deepPurple,
+            onPressed: () => _submit(connectionStatus),
+            child: Icon(
+              Icons.send,
+              size: 25,
+            ),
+          ));
+    });
   }
 
   Widget _textComposerWidget() {
@@ -395,13 +525,17 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                       child: IconButton(
                           icon: Icon(Icons.arrow_back),
                           onPressed: () {
-                            Navigator.of(_ctx).pop();
+                            // Navigator.pop(_ctx, updateFlag);
+                            Navigator.pop(_ctx);
                           }))),
               Flexible(
                   flex: 10,
                   child: Container(
                       width: MediaQuery.of(_ctx).size.width * 0.5,
-                      child: Text(capitalize(widget.toUsername),
+                      child: Text(
+                          capitalize(widget.userType == 1
+                              ? widget.friend.username
+                              : widget.group.roomName),
                           style: TextStyle(
                               // color: Colors.white70,
                               fontSize: 16.0)))),

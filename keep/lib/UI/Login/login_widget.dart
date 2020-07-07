@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:keep/settings/styles.dart' show UserEntranceTextStyle;
 
 class UserPic extends StatefulWidget {
   UserPic({Key key}) : super(key: key);
@@ -18,83 +20,73 @@ class _UserPicState extends State<UserPic> {
 
   Widget ovalImage(String imagePath) {
     return Container(
-      margin: EdgeInsets.fromLTRB(0, 45.0, 0, 10.0),
+      height: ScreenUtil.screenHeight * 0.1,
+      width: ScreenUtil.screenHeight * 0.1,
       decoration: ShapeDecoration(
           image:
               DecorationImage(image: AssetImage(imagePath), fit: BoxFit.cover),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadiusDirectional.circular(20))),
-      width: 90,
-      height: 90,
+              borderRadius: BorderRadiusDirectional.circular(32.w))),
     );
   }
 }
 
-Widget buildSpace(BuildContext context) {
-  return new SizedBox.fromSize(
-    child: Container(
-      height: MediaQuery.of(context).size.height * 0.04,
-      // color: Colors.white,
-    ),
-  );
-}
-
 Widget widgetLabelTxt() {
-  return Padding(
-      padding: EdgeInsets.fromLTRB(15.0, 0, 15.0, 45.0),
-      child: Text("Login",
-          textScaleFactor: 1.5, style: TextStyle(color: Colors.white70)));
+  return Text("Login",
+      textScaleFactor: 1.5,
+      style: UserEntranceTextStyle.headerLoginLabelTextStyle);
 }
 
 class WidgetLoginViaSocialMedia extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 16, top: 16.0, right: 16.0),
+      // padding: const EdgeInsets.only(left: 16, top: 16.0, right: 16.0),
+      padding: EdgeInsets.only(top: 24.h),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.max,
         children: <Widget>[
           Container(
-            padding: const EdgeInsets.all(8.0),
+            padding: EdgeInsets.all(24.w),
             decoration: BoxDecoration(
               color: Colors.white54,
               // color: Colors.purple,
-              borderRadius: BorderRadius.circular(4.0),
+              borderRadius: BorderRadius.circular(8.w),
             ),
             child: Icon(
               FontAwesomeIcons.google,
-              size: 18.0,
+              size: 42.w,
               color: Colors.black54,
               // color: Colors.pinkAccent,
             ),
           ),
-          SizedBox(width: 32.0),
+          SizedBox(width: 84.w),
           Container(
-            padding: const EdgeInsets.all(8.0),
+            padding: EdgeInsets.all(24.w),
             decoration: BoxDecoration(
               color: Colors.white54,
               // color: Color(0xFFF2F2F2),
-              borderRadius: BorderRadius.circular(4.0),
+              borderRadius: BorderRadius.circular(8.w),
             ),
             child: Icon(
               FontAwesomeIcons.weixin,
-              size: 18.0,
+              size: 42.w,
               color: Colors.black54,
               // color: Colors.green,
             ),
           ),
-          SizedBox(width: 32.0),
+          SizedBox(width: 84.w),
           Container(
-            padding: const EdgeInsets.all(8.0),
+            padding: EdgeInsets.all(24.w),
             decoration: BoxDecoration(
               color: Colors.white54,
               // color: Colors.purple,
-              borderRadius: BorderRadius.circular(4.0),
+              borderRadius: BorderRadius.circular(8.w),
             ),
             child: Icon(
               FontAwesomeIcons.facebookF,
-              size: 18.0,
+              size: 42.w,
               // color: Colors.blue,
               color: Colors.black54,
             ),
@@ -108,20 +100,20 @@ class WidgetLoginViaSocialMedia extends StatelessWidget {
 class WidgetLabelContinueWith extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 48.0),
+    return Container(
+      margin: EdgeInsets.only(top: 128.h),
       child: Center(
         child: Text(
           'Continue with',
-          style: TextStyle(color: Colors.white70, fontSize: 16.0),
+          style: UserEntranceTextStyle.headerLoginLabelTextStyle,
         ),
       ),
     );
   }
 }
 
-Widget widgetStatusLogin(bool triger, String hintTxt) {
-  if (triger) {
+Widget widgetStatusLogin(bool trigger, String hintTxt) {
+  if (trigger) {
     return Center(
         child: Container(
       decoration: BoxDecoration(
@@ -134,16 +126,16 @@ Widget widgetStatusLogin(bool triger, String hintTxt) {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.all(
-                  Radius.circular(16.0),
+                  Radius.circular(28.w),
                 ),
               ),
-              padding: EdgeInsets.all(20.0),
+              padding: EdgeInsets.all(48.w),
               child: Column(
                 children: <Widget>[
                   Platform.isIOS
                       ? CupertinoActivityIndicator()
                       : CircularProgressIndicator(),
-                  SizedBox(height: 16.0),
+                  SizedBox(height: 36.h),
                   Text(hintTxt),
                 ],
               ),

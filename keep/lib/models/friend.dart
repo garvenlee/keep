@@ -1,23 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:meta/meta.dart';
-import 'package:keep/global/global_tool.dart';
-import 'package:keep/global/user_pic.dart';
+import 'package:keep/utils/tools_function.dart';
 
 class Friend {
   Friend({
     @required this.userId,
-    @required this.avatar,
     @required this.username,
     @required this.email,
-    @required this.base64Text,
+    @required String base64Text,
     this.location,
-  });
+    this.pickname,
+    this.bio,
+    this.phone = 'do not set'
+  })  : this.base64Text = base64Text,
+        this.avatar = base64Text == 'null' ? 'null' : txt2Image(base64Text);
 
   final int userId;
-  final Object avatar;
+  Object avatar;
+  final String bio;
+  final String pickname;
   final String username;
   final String email;
   final String location;
+  final String phone;
   final String base64Text;
 
   static List<Friend> allFromMapList(decodedJson) {
@@ -29,43 +34,36 @@ class Friend {
   }
 
   static Friend fromMap(Map map) {
-    // print('enter.....................');
-    // print(map);
-    // print(map['userId'].runtimeType);
     var name = map['username'];
-    var avatarData = map['avatar'];
-    var avatar;
-    if (avatarData != 'null') {
-      avatar = txt2Image(avatarData);
-    } else {
-      avatar = 'null';
-      avatarData = 'null';
-    }
     return new Friend(
         userId: map['userId'] as int,
-        avatar: avatar,
         username: '${capitalize(name)}',
         email: map['email'],
-        base64Text: avatarData);
+        phone: map['phone'] ?? 'do not set',
+        base64Text: map['avatar'],
+        pickname: map['pickname'] ?? '');
   }
 
   Map toJson() {
     // print('toJson');
     return {
-      'userId': userId.toString(),
+      'userId': userId,
       'username': username,
       'email': email,
-      'avatar': base64Text
+      'phone': phone,
+      'avatar': base64Text,
+      'pickname': pickname
     };
   }
 
   factory Friend.fromJson(dynamic json) {
     return Friend(
-        userId: int.parse(json['userId']),
-        avatar: json['avatar'] as String,
+        userId: json['userId'] as int,
         username: json['username'] as String,
         email: json['email'] as String,
-        base64Text: json['avatar'] as String);
+        phone: json['phone'] as String,
+        base64Text: json['avatar'] as String,
+        pickname: json['pickname'] as String);
   }
 
   @override

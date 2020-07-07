@@ -5,6 +5,7 @@ const dbSchema = `CREATE TABLE IF NOT EXISTS User(
         lastname TEXT,
         email TEXT NOT NULL UNIQUE,
         password TEXT NOT NULL,
+        phone TEXT NOT NULL,
         api_key TEXT NOT NULL UNIQUE
     );`;
 
@@ -17,10 +18,10 @@ class UserRepository {
         return this.dao.run(dbSchema);
     }
 
-    create(username, email, password, api_key) {
+    create(username, email, password, api_key, phone) {
         return this.dao.run(
-            'INSERT INTO User (username, email, password, api_key) VALUES( ? , ? , ? , ? )',
-            [username, email, password, api_key]);
+            'INSERT INTO User (username, email, password, api_key, phone) VALUES( ? , ? , ? , ?, ? )',
+            [username, email, password, api_key, phone]);
     }
 
     update(email, password) {

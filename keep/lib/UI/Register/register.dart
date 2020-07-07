@@ -1,12 +1,17 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:keep/global/connectivity_status.dart';
-import 'package:keep/global/flush_status.dart';
-import 'package:keep/global/global_tool.dart';
-import 'package:keep/UI/Register/register_screen_presenter.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+
 import 'note_logo.dart';
+import 'package:keep/widget/flush_status.dart';
+import 'package:keep/utils/reg_expression.dart';
+import 'package:keep/settings/status_config.dart';
+import 'package:keep/UI/Register/register_screen_presenter.dart';
+import 'package:keep/utils/utils_class.dart' show ConnectivityStatus;
+import 'package:keep/settings/styles.dart'
+    show UserEntranceTextStyle, UserEntranceIcons, UserEntranceDecoration;
 
 class RegisterScreen extends StatefulWidget {
   @override
@@ -20,15 +25,12 @@ class RegisterScreenState extends State<RegisterScreen>
   final _formKey = new GlobalKey<FormState>();
   final _scaffoldKey = new GlobalKey<ScaffoldState>();
   final TextEditingController _pass = TextEditingController();
-  final registerStyle = TextStyle(
-      color: Colors.white70, fontFamily: 'Montserrat', fontSize: 15.0);
 
   BuildContext _registerCtx;
   bool _isLoading = false;
   bool _obscureText = true;
-  String _username, _email, _password;
+  String _username, _email, _password, _phone;
   RegisterScreenPresenter _presenter;
-  var connectionStatus;
 
   RegisterScreenState() {
     _presenter = new RegisterScreenPresenter(this);
@@ -40,7 +42,8 @@ class RegisterScreenState extends State<RegisterScreen>
     super.dispose();
   }
 
-  void _submit() async {
+  void _submit(connectionStatus) async {
+    _unfocus();
     final form = _formKey.currentState;
 
     if (form.validate()) {
@@ -48,7 +51,7 @@ class RegisterScreenState extends State<RegisterScreen>
         setState(() => _isLoading = true);
         form.save();
         await Future.delayed(Duration(seconds: 3));
-        _presenter.doRegister(_username, _email, _password);
+        _presenter.doRegister(_username, _email, _password, _phone);
       } else {
         _showSnackBar('Please check your internet.');
       }
@@ -88,224 +91,227 @@ class RegisterScreenState extends State<RegisterScreen>
     });
   }
 
+  void _unfocus() {
+    FocusScopeNode currentFocus = FocusScope.of(_registerCtx);
+    // print('unfocus');
+    if (!currentFocus.hasPrimaryFocus) {
+      // print('unfocus');
+      currentFocus.unfocus();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     _registerCtx = context;
-    var registerBtn = _buildBtn();
-    var registerForm = _buildForm(registerBtn);
-    connectionStatus = Provider.of<ConnectivityStatus>(context);
-
-    return new Scaffold(
-        appBar: PreferredSize(
-          preferredSize:
-              Size.fromHeight(MediaQuery.of(context).size.height * 0.07),
-          child: SafeArea(
-            top: true,
-            child: Offstage(),
-          ),
-        ),
-        resizeToAvoidBottomPadding: false,
-        key: _scaffoldKey,
-        body: Container(
-            height: MediaQuery.of(context).size.height,
-            decoration: new BoxDecoration(
-              image: new DecorationImage(
-                  image: new AssetImage("assets/images/screen2.jpg"),
-                  fit: BoxFit.cover),
+    var registerForm = _buildForm();
+    return GestureDetector(
+        onTap: () => _unfocus(),
+        child: new Scaffold(
+            appBar: PreferredSize(
+              preferredSize: Size.fromHeight(ScreenUtil.screenHeight * 0.07),
+              child: SafeArea(
+                top: true,
+                child: Offstage(),
+              ),
             ),
-            child: SingleChildScrollView(
-                child: Column(children: <Widget>[
-              WidgetIconNoting(),
-              Container(
-                  width: MediaQuery.of(context).size.width * 0.85,
-                  decoration: BoxDecoration(
-                    color: Colors.black12.withAlpha(110),
-                    border: Border.all(
-                      width: 0.1,
-                      style: BorderStyle.none,
-                    ),
-                    borderRadius: BorderRadius.all(Radius.circular(20.0)),
-                  ),
-                  child: Center(
-                      child: Column(children: <Widget>[
-                    Container(
-                      // color: Colors.grey.withOpacity(0.6),
-                      child: Padding(
-                        padding: const EdgeInsets.all(36.0),
-                        child: registerForm,
+            resizeToAvoidBottomPadding: false,
+            key: _scaffoldKey,
+            body: Container(
+                height: ScreenUtil.screenHeight,
+                decoration: new BoxDecoration(
+                  image: new DecorationImage(
+                      image: new AssetImage("assets/images/screen2.jpg"),
+                      fit: BoxFit.cover),
+                ),
+                child: SingleChildScrollView(
+                    child: Column(children: <Widget>[
+                  SizedBox(height: ScreenUtil.screenHeight * 0.06),
+                  WidgetIconNoting(),
+                  SizedBox(height: ScreenUtil.screenHeight * 0.03),
+                  Container(
+                      width: ScreenUtil.screenWidth * 0.85,
+                      height: ScreenUtil.screenHeight * 0.60,
+                      decoration: BoxDecoration(
+                        color: Colors.black12.withAlpha(110),
+                        border: Border.all(
+                          width: 1.w,
+                          style: BorderStyle.none,
+                        ),
+                        borderRadius: BorderRadius.all(Radius.circular(36.w)),
                       ),
-                    )
-                  ])))
-            ]))));
+                      child: registerForm)
+                ])))));
   }
 
   Widget _buildBtn() {
-    return Padding(
-        padding: EdgeInsets.fromLTRB(15.0, 40.0, 15.0, 0),
-        child: Container(
-            width: MediaQuery.of(context).size.width * 0.3,
-            child: MaterialButton(
-              height: 40.0,
-              color: Colors.white.withAlpha(125),
-              splashColor: Colors.blue,
-              shape: RoundedRectangleBorder(
-                  borderRadius: new BorderRadius.circular(32.0),
-                  side: BorderSide(color: Colors.black54)),
-              onPressed: _submit,
-              child: Text("Register",
-                  style: TextStyle(
-                      color: Colors.black87,
-                      fontFamily: 'NanumGothic',
-                      fontWeight: FontWeight.w500,
-                      fontSize: 16.0)),
-            )));
+    return Consumer<ConnectivityStatus>(
+        builder: (context, connectionStatus, child) {
+          return Container(
+              width: ScreenUtil.screenWidth * 0.3,
+              margin: EdgeInsets.only(top: 54.h),
+              padding: EdgeInsets.symmetric(vertical: 24.h),
+              child: MaterialButton(
+                  height: 100.h,
+                  color: Colors.white.withAlpha(125),
+                  splashColor: Colors.blue,
+                  shape: UserEntranceDecoration.shape,
+                  onPressed: () => _submit(connectionStatus),
+                  child: child));
+        },
+        child:
+            Text("Register", style: UserEntranceTextStyle.loginBtnTextStyle));
   }
 
   Widget _buildUsernameField() {
     return new Padding(
-      padding: const EdgeInsets.all(8.0),
+      padding: EdgeInsets.all(8.w),
       child: new TextFormField(
         onSaved: (val) => _username = val,
-        validator: (val) => val.isEmpty ? "username don't be empty!" : null,
-        style: registerStyle,
+        validator: (val) => judgeUsername(val),
+        style: UserEntranceTextStyle.loginFieldInputTextStyle,
         textInputAction: TextInputAction.next,
         keyboardType: TextInputType.text,
         decoration: InputDecoration(
-            contentPadding: EdgeInsets.fromLTRB(20.0, 15.0, 20.0, 15.0),
+            contentPadding: EdgeInsets.fromLTRB(20.w, 15.w, 20.w, 15.w),
             hintText: "Username",
-            hintStyle: TextStyle(
-                fontSize: 15.0, color: Colors.amberAccent.withOpacity(0.8)),
-            prefixIcon: Icon(Icons.person_outline, color: Colors.white70),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(32.0),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(32.0),
-              borderSide: BorderSide(
-                color: Colors.white60,
-              ),
-            )),
+            hintStyle: UserEntranceTextStyle.loginFieldHintStyle,
+            prefixIcon: UserEntranceIcons.username,
+            border: UserEntranceDecoration.border,
+            enabledBorder: UserEntranceDecoration.enableBorder),
+      ),
+    );
+  }
+
+  Widget _buildPhoneField() {
+    return new Padding(
+      padding: EdgeInsets.all(8.w),
+      child: new TextFormField(
+        onSaved: (val) => _phone = val,
+        validator: (val) => judgePhoneNumber(val),
+        style: UserEntranceTextStyle.loginFieldInputTextStyle,
+        textInputAction: TextInputAction.next,
+        keyboardType: TextInputType.number,
+        decoration: InputDecoration(
+          contentPadding: EdgeInsets.fromLTRB(20.w, 15.w, 20.w, 15.w),
+          hintText: "Phone",
+          hintStyle: UserEntranceTextStyle.loginFieldHintStyle,
+          prefixIcon: UserEntranceIcons.phone,
+          border: UserEntranceDecoration.border,
+          enabledBorder: UserEntranceDecoration.enableBorder,
+        ),
       ),
     );
   }
 
   Widget _buildEmailField() {
     return new Padding(
-      padding: const EdgeInsets.all(8.0),
+      padding: EdgeInsets.all(8.w),
       child: new TextFormField(
         onSaved: (val) => _email = val,
         validator: (val) => judgeEmail(val),
-        style: registerStyle,
+        style: UserEntranceTextStyle.loginFieldInputTextStyle,
         textInputAction: TextInputAction.next,
         keyboardType: TextInputType.emailAddress,
         decoration: InputDecoration(
-          contentPadding: EdgeInsets.fromLTRB(20.0, 15.0, 20.0, 15.0),
-          hintText: "Email",
-          hintStyle: TextStyle(
-              fontSize: 15.0, color: Colors.amberAccent.withOpacity(0.8)),
-          prefixIcon: Icon(Icons.email, color: Colors.white70),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(32.0),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(32.0),
-            borderSide: BorderSide(
-              color: Colors.white60,
-            ),
-          ),
-        ),
+            contentPadding: EdgeInsets.fromLTRB(20.w, 15.w, 20.w, 15.w),
+            hintText: "Email",
+            hintStyle: UserEntranceTextStyle.loginFieldHintStyle,
+            prefixIcon: UserEntranceIcons.email,
+            border: UserEntranceDecoration.border,
+            enabledBorder: UserEntranceDecoration.enableBorder),
       ),
     );
   }
 
   Widget _buildPwdField() {
     return new Padding(
-      padding: const EdgeInsets.all(8.0),
+      padding: EdgeInsets.all(8.w),
       child: new TextFormField(
         controller: _pass,
         obscureText: _obscureText,
         validator: (val) => judgePwd(val),
         onSaved: (val) => _password = val,
-        style: registerStyle,
+        style: UserEntranceTextStyle.loginFieldInputTextStyle,
         keyboardType: TextInputType.text,
         textInputAction: TextInputAction.next,
         decoration: InputDecoration(
-            contentPadding: EdgeInsets.fromLTRB(20.0, 15.0, 20.0, 15.0),
+            contentPadding: EdgeInsets.fromLTRB(20.w, 15.w, 20.w, 15.w),
             hintText: "Password",
-            hintStyle: TextStyle(
-                fontSize: 15.0, color: Colors.amberAccent.withOpacity(0.8)),
-            prefixIcon: Icon(Icons.lock, color: Colors.white70),
+            hintStyle: UserEntranceTextStyle.loginFieldHintStyle,
+            prefixIcon: UserEntranceIcons.password,
             // suffixIcon: Icon(Icons.remove_red_eye, color: Colors.white70),
             suffixIcon: IconButton(
                 onPressed: _toggle,
                 icon: Icon(Icons.remove_red_eye),
                 color: Colors.white70),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(32.0),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(32.0),
-              borderSide: BorderSide(
-                color: Colors.white60,
-              ),
-            )),
+            border: UserEntranceDecoration.border,
+            enabledBorder: UserEntranceDecoration.enableBorder),
       ),
     );
   }
 
   Widget _buildConfirmPwdField() {
     return new Padding(
-      padding: const EdgeInsets.all(8.0),
+      padding: EdgeInsets.all(8.w),
       child: new TextFormField(
           obscureText: true,
           validator: (val) => judgeConfirmPwd(val, _pass.text),
-          style: registerStyle,
+          style: UserEntranceTextStyle.loginFieldInputTextStyle,
           textInputAction: TextInputAction.done,
           keyboardType: TextInputType.text,
           decoration: InputDecoration(
-            contentPadding: EdgeInsets.fromLTRB(20.0, 15.0, 20.0, 15.0),
-            hintText: "Confirm Password",
-            hintStyle: TextStyle(
-                fontSize: 15.0, color: Colors.amberAccent.withOpacity(0.8)),
-            prefixIcon: Icon(Icons.lock, color: Colors.white70),
-            suffixIcon: IconButton(
-                onPressed: _toggle,
-                icon: Icon(Icons.remove_red_eye),
-                color: Colors.white70),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(32.0),
-            ),
-            enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(32.0),
-                borderSide: BorderSide(
-                  color: Colors.white60,
-                )),
-          )),
+              contentPadding: EdgeInsets.fromLTRB(20.w, 15.w, 20.w, 15.w),
+              hintText: "Confirm Password",
+              hintStyle: UserEntranceTextStyle.loginFieldHintStyle,
+              prefixIcon: UserEntranceIcons.password,
+              suffixIcon: IconButton(
+                  onPressed: _toggle,
+                  icon: Icon(Icons.remove_red_eye),
+                  color: Colors.white70),
+              border: UserEntranceDecoration.border,
+              enabledBorder: UserEntranceDecoration.enableBorder)),
     );
   }
 
   Widget _buildLabel() {
     return new Padding(
-        padding: EdgeInsets.fromLTRB(15.0, 0, 15.0, 15.0),
-        child: new Text("Sign Up to Your Account",
-            textScaleFactor: 1.5, style: TextStyle(color: Colors.white70)));
+        padding: EdgeInsets.fromLTRB(15.w, 0, 15.w, 15.w),
+        child: new Text("Sign up to Your Account",
+            textScaleFactor: 1.5,
+            style: UserEntranceTextStyle.subHeaderRegisterLabelTextStyle));
   }
 
-  Widget _buildForm(Widget btn) {
+  Widget _buildForm() {
     return new Form(
-      // autovalidate: true,
-      key: _formKey,
-      child: new Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: <Widget>[
-          _buildLabel(),
-          _buildUsernameField(),
-          _buildEmailField(),
-          _buildPwdField(),
-          _buildConfirmPwdField(),
-          _isLoading ? new CircularProgressIndicator() : btn,
-        ],
-      ),
-    );
+        key: _formKey,
+        child: Stack(children: [
+          Padding(
+            padding: EdgeInsets.all(56.w),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: <Widget>[
+                _buildLabel(),
+                SizedBox(height: 112.h),
+                _buildUsernameField(),
+                _buildEmailField(),
+                _buildPhoneField(),
+                _buildPwdField(),
+                _buildConfirmPwdField(),
+              ],
+            ),
+          ),
+          Positioned(
+              top: ScreenUtil.screenHeight * 0.48,
+              child: Container(
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 56.w, vertical: 35.h),
+                  width: ScreenUtil.screenWidth * 0.85,
+                  child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: _isLoading
+                          ? new CircularProgressIndicator(strokeWidth: 3)
+                          : _buildBtn())))
+        ]));
   }
 }

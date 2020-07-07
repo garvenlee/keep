@@ -1,190 +1,79 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-// import 'package:keep/data/rest_ds.dart';
-import 'package:url_launcher/url_launcher.dart';
-// import 'package:keep/utils/event_util.dart';
+// import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+// import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_webview_plugin/flutter_webview_plugin.dart';
+import 'package:keep/widget/search_header.dart';
+
+// ignore: prefer_collection_literals
+final Set<JavascriptChannel> jsChannels = [
+  JavascriptChannel(
+      name: 'Print',
+      onMessageReceived: (JavascriptMessage message) {
+        print(message.message);
+      }),
+].toSet();
 
 class StorageBox extends StatefulWidget {
-  StorageBox({Key key, this.title}) : super(key: key);
-  final String title;
+  final String url;
+  StorageBox({Key key, this.url}) : super(key: key);
 
   @override
   _StorageBoxState createState() => _StorageBoxState();
 }
 
 class _StorageBoxState extends State<StorageBox> {
-  Future<void> _launched;
-  String _phone = '';
+  final flutterWebViewPlugin = FlutterWebviewPlugin();
+  String dropdownValue = 'One';
+  var _searchController = new TextEditingController();
+  var _focusNode = new FocusNode();
 
   @override
-  void initState() {
-    super.initState();
-  }
-
-  Future<void> _launchInBrowser(String url) async {
-    if (await canLaunch(url)) {
-      await launch(
-        url,
-        forceSafariVC: false,
-        forceWebView: false,
-        headers: <String, String>{'my_header_key': 'my_header_value'},
-      );
-    } else {
-      throw 'Could not launch $url';
-    }
-  }
-
-  Future<void> _launchInWebViewOrVC(String url) async {
-    if (await canLaunch(url)) {
-      await launch(
-        url,
-        forceSafariVC: true,
-        forceWebView: true,
-        headers: <String, String>{'my_header_key': 'my_header_value'},
-      );
-    } else {
-      throw 'Could not launch $url';
-    }
-  }
-
-  Future<void> _launchInWebViewWithJavaScript(String url) async {
-    if (await canLaunch(url)) {
-      await launch(
-        url,
-        forceSafariVC: true,
-        forceWebView: true,
-        enableJavaScript: true,
-      );
-    } else {
-      throw 'Could not launch $url';
-    }
-  }
-
-  Future<void> _launchInWebViewWithDomStorage(String url) async {
-    if (await canLaunch(url)) {
-      await launch(
-        url,
-        forceSafariVC: true,
-        forceWebView: true,
-        enableDomStorage: true,
-      );
-    } else {
-      throw 'Could not launch $url';
-    }
-  }
-
-  Future<void> _launchUniversalLinkIos(String url) async {
-    if (await canLaunch(url)) {
-      final bool nativeAppLaunchSucceeded = await launch(
-        url,
-        forceSafariVC: false,
-        universalLinksOnly: true,
-      );
-      if (!nativeAppLaunchSucceeded) {
-        await launch(
-          url,
-          forceSafariVC: true,
-        );
-      }
-    }
-  }
-
-  Widget _launchStatus(BuildContext context, AsyncSnapshot<void> snapshot) {
-    if (snapshot.hasError) {
-      return Text('Error: ${snapshot.error}');
-    } else {
-      return const Text('');
-    }
-  }
-
-  Future<void> _makePhoneCall(String url) async {
-    if (await canLaunch(url)) {
-      await launch(url);
-    } else {
-      throw 'Could not launch $url';
-    }
+  void dispose() {
+    // print('closing....................');
+    flutterWebViewPlugin.close();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    const String toLaunch = 'https://www.cylog.org/headers/';
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
-      body: ListView(
-        children: <Widget>[
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+    return Material(
+        child: SafeArea(
+      child: WebviewScaffold(
+        url: widget.url,
+        javascriptChannels: jsChannels,
+        mediaPlaybackRequiresUserGesture: false,
+        withZoom: true,
+        appBar: PreferredSize(
+            preferredSize: Size(MediaQuery.of(context).size.width, 50.0),
+            child: buildSearchHeader(context, _searchController, _focusNode)),
+        withLocalStorage: true,
+        hidden: true,
+        bottomNavigationBar: BottomAppBar(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: <Widget>[
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: TextField(
-                    onChanged: (String text) => _phone = text,
-                    decoration: const InputDecoration(
-                        hintText: 'Input the phone number to launch')),
+              IconButton(
+                icon: const Icon(Icons.arrow_back_ios),
+                onPressed: () {
+                  flutterWebViewPlugin.goBack();
+                },
               ),
-              RaisedButton(
-                onPressed: () => setState(() {
-                  _launched = _makePhoneCall('tel:$_phone');
-                }),
-                child: const Text('Make phone call'),
+              IconButton(
+                icon: const Icon(Icons.autorenew),
+                onPressed: () {
+                  flutterWebViewPlugin.reload();
+                },
               ),
-              const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text(toLaunch),
+              IconButton(
+                icon: const Icon(Icons.arrow_forward_ios),
+                onPressed: () {
+                  flutterWebViewPlugin.goForward();
+                },
               ),
-              RaisedButton(
-                onPressed: () => setState(() {
-                  _launched = _launchInBrowser(toLaunch);
-                }),
-                child: const Text('Launch in browser'),
-              ),
-              const Padding(padding: EdgeInsets.all(16.0)),
-              RaisedButton(
-                onPressed: () => setState(() {
-                  _launched = _launchInWebViewOrVC(toLaunch);
-                }),
-                child: const Text('Launch in app'),
-              ),
-              RaisedButton(
-                onPressed: () => setState(() {
-                  _launched = _launchInWebViewWithJavaScript(toLaunch);
-                }),
-                child: const Text('Launch in app(JavaScript ON)'),
-              ),
-              RaisedButton(
-                onPressed: () => setState(() {
-                  _launched = _launchInWebViewWithDomStorage(toLaunch);
-                }),
-                child: const Text('Launch in app(DOM storage ON)'),
-              ),
-              const Padding(padding: EdgeInsets.all(16.0)),
-              RaisedButton(
-                onPressed: () => setState(() {
-                  _launched = _launchUniversalLinkIos(toLaunch);
-                }),
-                child: const Text(
-                    'Launch a universal link in a native app, fallback to Safari.(Youtube)'),
-              ),
-              const Padding(padding: EdgeInsets.all(16.0)),
-              RaisedButton(
-                onPressed: () => setState(() {
-                  _launched = _launchInWebViewOrVC(toLaunch);
-                  Timer(const Duration(seconds: 5), () {
-                    print('Closing WebView after 5 seconds...');
-                    closeWebView();
-                  });
-                }),
-                child: const Text('Launch in app + close after 5 seconds'),
-              ),
-              const Padding(padding: EdgeInsets.all(16.0)),
-              FutureBuilder<void>(future: _launched, builder: _launchStatus),
             ],
           ),
-        ],
+        ),
       ),
-    );
+    ));
   }
 }

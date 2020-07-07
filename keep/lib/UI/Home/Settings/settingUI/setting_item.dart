@@ -39,7 +39,7 @@ class SettingItems extends StatelessWidget {
         buildItem(
             Icon(Icons.notifications_none), 'Notifications and Sounds', () {}),
         buildBottomLine(),
-        buildItem(Icon(Icons.chat_bubble_outline), 'Char Settings', () {}),
+        buildItem(Icon(Icons.chat_bubble_outline), 'Chat Settings', () {}),
         buildBottomLine(),
         buildItem(Icon(Icons.devices), 'Devices', () {}),
         buildBottomLine(),

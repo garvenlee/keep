@@ -1,19 +1,27 @@
+// import 'dart:html';
 import 'dart:ui';
 import 'dart:async';
-import 'package:keep/data/provider/friend_provider.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
-import 'package:keep/data/provider/user_provider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-import 'package:keep/global/connectivity_status.dart';
-import 'package:keep/global/global_tool.dart';
-import 'package:keep/global/flush_status.dart';
+import 'package:keep/utils/utils_class.dart' show ConnectivityStatus;
+// import 'package:keep/widget/component_widget.dart';
+import 'package:keep/widget/flush_status.dart';
 import 'package:keep/UI/Login/login_widget.dart';
 import 'package:keep/UI/Login/login_screen_presenter.dart';
 import 'package:keep/models/user.dart';
-import 'package:keep/utils/socket_util.dart';
-import 'package:keep/utils/event_util.dart';
+import 'package:keep/data/provider/user_provider.dart';
+import 'package:keep/data/provider/friend_provider.dart';
+import 'package:keep/service/note_presenter.dart';
+import 'package:keep/service/todo_presenter.dart';
+import 'package:keep/service/group_presenter.dart';
+import 'package:keep/service/message_presenter.dart';
+import 'package:keep/settings/status_config.dart';
+import 'package:keep/utils/reg_expression.dart';
+import 'package:keep/settings/styles.dart'
+    show UserEntranceTextStyle, UserEntranceIcons, UserEntranceDecoration;
 
 class LoginScreen extends StatefulWidget {
   final String _holdEmail;
@@ -31,15 +39,11 @@ class LoginScreenState extends State<LoginScreen>
   final formKey = new GlobalKey<FormState>();
   final scaffoldKey = new GlobalKey<ScaffoldState>();
   TextEditingController _emailController;
-  final loginStyle = TextStyle(
-      color: Colors.white70, fontFamily: 'Montserrat', fontSize: 15.0);
   BuildContext _ctx;
   bool _obscureText = true;
   bool _isLoading = false;
   String _email, _password;
   String apiKey;
-  // Get our connection status from the provider
-  var connectionStatus;
   bool _offline = false;
 
   // set timeout
@@ -82,11 +86,11 @@ class LoginScreenState extends State<LoginScreen>
 
   @override
   void dispose() {
-    super.dispose();
+    _emailController.dispose();
     if (_timer != null) {
       _timer.cancel();
     }
-    _emailController.dispose();
+    super.dispose();
   }
 
   @override
@@ -101,7 +105,8 @@ class LoginScreenState extends State<LoginScreen>
     apiKey = UserProvider.getApiKey() ?? 'null';
   }
 
-  void _submit() async {
+  void _submit(connectionStatus) async {
+    _unfocus();
     final form = formKey.currentState;
     if (form.validate()) {
       if (connectionStatus == ConnectivityStatus.Available) {
@@ -139,133 +144,136 @@ class LoginScreenState extends State<LoginScreen>
 
   @override
   void onLoginSuccess(User user) async {
-    setState(() => _isLoading = false);
     UserProvider.saveUser(user);
-    // login post请求成功后先进行socket连接测试
-    await new SocketUtil().socket.then((socket) {
-      // 若socket连接成功，就进入主页面
-      bus.on('login', (data) {
-        showFlushBar(
-            _ctx, _email, "You have loged in!", iconIndicator['success']);
-        FriendProvider.saveFriends(user.userId)
-            .then((_) => Timer(Duration(milliseconds: 1500), () {
-                  Navigator.of(_ctx).pushNamedAndRemoveUntil(
-                      "/home", (Route<dynamic> route) => false);
-                }));
-      });
+    FriendProvider.saveFriends(user.userId);
+    NotePresenter.getCollections(user.userId); // 等待抓取服务器的NOTE
+    TodoPresenter.getCollections(user.userId);
+    GroupPresenter.saveGroups(user.userId);
 
-      // 这个error当服务器正常开启时一般不会触发
-      bus.on('login-error', (data) {
-        showFlushBar(
-            _ctx, _email, "There is uncertain error!", iconIndicator['error']);
-      });
-
-      // 如果socket连接被拦截，显示提示栏
-      bus.on('authorized', (data) {
-        if (data == 'Not authorized') {
-          showFlushBar(
-              _ctx, _email, "You have not authorized!", iconIndicator['error']);
-        }
+    MessagePresenter.saveMessages(user.userId);
+    Future.delayed(Duration(seconds: 3), () {
+      setState(() => _isLoading = false);
+      showFlushBar(
+          _ctx, _email, "You have loged in!", iconIndicator['success']);
+      Timer(Duration(milliseconds: 2000), () {
+        Navigator.of(_ctx)
+            .pushNamedAndRemoveUntil("/home", (Route<dynamic> route) => false);
       });
     });
+  }
+
+  void _unfocus() {
+    FocusScopeNode currentFocus = FocusScope.of(_ctx);
+    print('unfocus');
+    if (!currentFocus.hasPrimaryFocus) {
+      print('unfocus');
+      currentFocus.unfocus();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     _ctx = context;
-    connectionStatus = Provider.of<ConnectivityStatus>(context);
     var loginForm = _buildForm();
-    return new Scaffold(
-        appBar: PreferredSize(
-          preferredSize:
-              Size.fromHeight(MediaQuery.of(context).size.height * 0.07),
-          child: SafeArea(
-            top: true,
-            child: Offstage(),
-          ),
-        ),
-        resizeToAvoidBottomPadding: false,
-        key: scaffoldKey,
-        body: new Stack(children: <Widget>[
-          Container(
-              height: MediaQuery.of(context).size.height,
-              decoration: new BoxDecoration(
-                  image: new DecorationImage(
-                      image: new AssetImage("assets/images/screen2.jpg"),
-                      fit: BoxFit.cover)),
-              child: SingleChildScrollView(
+    return GestureDetector(
+        onTap: () => _unfocus(),
+        child: new Scaffold(
+            appBar: PreferredSize(
+              preferredSize:
+                  // Size.fromHeight(MediaQuery.of(context).size.height * 0.2),
+                  Size.fromHeight(ScreenUtil.screenHeight * 0.2),
+              child: SafeArea(
+                top: true,
+                child: Offstage(),
+              ),
+            ),
+            resizeToAvoidBottomPadding: false,
+            key: scaffoldKey,
+            body: new Stack(children: <Widget>[
+              Container(
+                  // height: MediaQuery.of(context).size.height,
+                  height: ScreenUtil.screenHeight,
+                  decoration: new BoxDecoration(
+                      image: new DecorationImage(
+                          image: new AssetImage("assets/images/screen2.jpg"),
+                          fit: BoxFit.cover)),
                   child: Container(
-                width: MediaQuery.of(context).size.width,
-                child: Column(children: <Widget>[
-                  UserPic(),
-                  buildSpace(context),
-                  Container(
-                    width: MediaQuery.of(context).size.width * 0.85,
-                    decoration: BoxDecoration(
-                      color: Colors.black12.withAlpha(110),
-                      border: Border.all(
-                        width: 0.1,
-                        style: BorderStyle.none,
-                      ),
-                      borderRadius: BorderRadius.all(Radius.circular(20.0)),
-                    ),
-                    child: loginForm,
-                  )
-                ]),
-              ))),
-          widgetStatusLogin(_isLoading, 'Please wait.'),
-        ]));
+                    // width: MediaQuery.of(context).size.width,
+                    width: ScreenUtil.screenWidth,
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: <Widget>[
+                          SizedBox(height: ScreenUtil.screenHeight * 0.07),
+                          UserPic(),
+                          SizedBox(height: ScreenUtil.screenHeight * 0.07),
+                          Container(
+                              height: ScreenUtil.screenHeight * 0.58,
+                              width: ScreenUtil.screenWidth * 0.85,
+                              decoration: BoxDecoration(
+                                  color: Colors.black12.withAlpha(110),
+                                  border: Border.all(
+                                      width: 1.w, style: BorderStyle.none),
+                                  borderRadius:
+                                      BorderRadius.all(Radius.circular(36.w))),
+                              child: loginForm)
+                        ]),
+                  )),
+              widgetStatusLogin(_isLoading, 'Please wait.'),
+            ])));
   }
 
   Widget _buildForm() {
     return new Form(
-      // autovalidate: true,
       key: formKey,
-      child: Padding(
-          padding: const EdgeInsets.only(
-              left: 36.0, right: 36.0, top: 15.0, bottom: 36.0),
-          child: new Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              widgetLabelTxt(),
-              _buildEmail(),
-              _buildPwd(),
-              _buildResetPwd(),
-              _buildBtn(),
-              WidgetLabelContinueWith(),
-              WidgetLoginViaSocialMedia(),
-            ],
-          )),
+      child: Stack(children: [
+        Padding(
+            padding: EdgeInsets.all(56.w),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                widgetLabelTxt(),
+                SizedBox(height: 112.h),
+                _buildEmail(),
+                SizedBox(height: 16.h),
+                _buildPwd(),
+              ],
+            )),
+        Positioned(
+            top: ScreenUtil.screenHeight * 0.25,
+            child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 56.w, vertical: 35.h),
+                width: ScreenUtil.screenWidth * 0.85,
+                child: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      _buildResetPwd(),
+                      _buildBtn(),
+                      WidgetLabelContinueWith(),
+                      WidgetLoginViaSocialMedia(),
+                    ])))
+      ]),
     );
   }
 
   Widget _buildEmail() {
     return new Padding(
-      padding: const EdgeInsets.all(8.0),
+      padding: EdgeInsets.all(8.w),
       child: new TextFormField(
-        onSaved: (val) => setState(() {
-          _email = val;
-        }),
+        onSaved: (val) => setState(() => _email = val),
         controller: _emailController,
         validator: (val) => judgeEmail(val),
-        style: loginStyle,
+        style: UserEntranceTextStyle.loginFieldInputTextStyle,
         textInputAction: TextInputAction.next,
         keyboardType: TextInputType.emailAddress,
         decoration: InputDecoration(
-          contentPadding: EdgeInsets.fromLTRB(20.0, 15.0, 20.0, 15.0),
+          contentPadding: EdgeInsets.fromLTRB(20.w, 15.h, 20.w, 15.h),
           hintText: "Email",
-          hintStyle: TextStyle(
-              fontSize: 15.0, color: Colors.amberAccent.withOpacity(0.8)),
-          prefixIcon: Icon(Icons.email, color: Colors.white70),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(32.0),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(32.0),
-            borderSide: BorderSide(
-              color: Colors.white60,
-            ),
-          ),
+          hintStyle: UserEntranceTextStyle.loginFieldHintStyle,
+          prefixIcon: UserEntranceIcons.email,
+          border: UserEntranceDecoration.border,
+          enabledBorder: UserEntranceDecoration.enableBorder,
         ),
       ),
     );
@@ -273,97 +281,61 @@ class LoginScreenState extends State<LoginScreen>
 
   Widget _buildPwd() {
     return new Padding(
-      padding: const EdgeInsets.all(8.0),
+      padding: EdgeInsets.all(8.w),
       child: new TextFormField(
         obscureText: _obscureText,
         validator: (val) => judgePwd(val),
-        onSaved: (val) => setState(() {
-          _password = val;
-        }),
-        style: loginStyle,
+        onSaved: (val) => setState(() => _password = val),
+        style: UserEntranceTextStyle.loginFieldInputTextStyle,
         textInputAction: TextInputAction.done,
         keyboardType: TextInputType.text,
         decoration: InputDecoration(
-          contentPadding: EdgeInsets.fromLTRB(20.0, 15.0, 20.0, 15.0),
+          contentPadding: EdgeInsets.fromLTRB(20.w, 15.h, 20.w, 15.h),
           hintText: "Password",
-          hintStyle: TextStyle(
-              fontSize: 15.0, color: Colors.amberAccent.withOpacity(0.8)),
-          prefixIcon: Icon(Icons.lock, color: Colors.white70),
+          hintStyle: UserEntranceTextStyle.loginFieldHintStyle,
+          // fontSize: 15.0, color: Colors.amberAccent.withOpacity(0.8)),
+          prefixIcon: UserEntranceIcons.password,
           suffixIcon: IconButton(
               onPressed: _toggle,
               icon: Icon(Icons.remove_red_eye),
               color: Colors.white70),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(32.0),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(32.0),
-            borderSide: BorderSide(
-              color: Colors.white60,
-            ),
-          ),
+          border: UserEntranceDecoration.border,
+          enabledBorder: UserEntranceDecoration.enableBorder,
         ),
       ),
     );
   }
 
   Widget _buildResetPwd() {
-    return Wrap(
-      children: <Widget>[
-        Padding(
-          padding: EdgeInsets.only(top: 20.0),
-          child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: <Widget>[
-                FlatButton(
-                  child: Text(
-                    'Register?',
-                    style: TextStyle(
-                      color: Colors.blueAccent,
-                      fontFamily: 'NanumGothic',
-                    ),
-                  ),
-                  onPressed: () {
-                    Navigator.of(_ctx).pushNamed("/register");
-                  },
-                ),
-                FlatButton(
-                  child: Text(
-                    'Forget Password?',
-                    style: TextStyle(
-                      color: Colors.blueAccent,
-                      fontFamily: 'NanumGothic',
-                    ),
-                  ),
-                  onPressed: () {
-                    Navigator.of(_ctx).pushNamed("/forget");
-                  },
-                ),
-              ]),
-        )
-      ],
-    );
+    return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: <Widget>[
+          FlatButton(
+              child: Text('Register?',
+                  style: UserEntranceTextStyle.loginHintTextStyle),
+              onPressed: () => Navigator.of(_ctx).pushNamed("/register")),
+          FlatButton(
+              child: Text('Forget Password?',
+                  style: UserEntranceTextStyle.loginHintTextStyle),
+              onPressed: () => Navigator.of(_ctx).pushNamed("/forget")),
+        ]);
   }
 
   Widget _buildBtn() {
-    return Wrap(children: <Widget>[
-      Container(
-          width: MediaQuery.of(context).size.width * 0.3,
-          child: MaterialButton(
-            height: 40.0,
-            color: Colors.white.withAlpha(145),
-            splashColor: Colors.blue,
-            shape: RoundedRectangleBorder(
-                borderRadius: new BorderRadius.circular(32.0),
-                side: BorderSide(color: Colors.black54)),
-            onPressed: _submit,
-            child: Text("Log in",
-                style: TextStyle(
-                    color: Colors.black87,
-                    fontFamily: 'NanumGothic',
-                    fontWeight: FontWeight.w500,
-                    fontSize: 16.0)),
-          ))
-    ]);
+    return Consumer<ConnectivityStatus>(
+        builder: (context, connectionStatus, child) {
+          return Container(
+              padding: EdgeInsets.symmetric(vertical: 24.h),
+              margin: EdgeInsets.only(top: 54.h),
+              width: ScreenUtil.screenWidth * 0.3,
+              child: MaterialButton(
+                  height: 100.h,
+                  color: Colors.white.withAlpha(145),
+                  splashColor: Colors.blue,
+                  shape: UserEntranceDecoration.shape,
+                  onPressed: () => _submit(connectionStatus),
+                  child: child));
+        },
+        child: Text("Log in", style: UserEntranceTextStyle.loginBtnTextStyle));
   }
 }

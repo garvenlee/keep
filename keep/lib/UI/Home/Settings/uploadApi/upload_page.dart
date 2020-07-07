@@ -4,7 +4,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_crop/image_crop.dart';
 import 'package:keep/data/provider/user_provider.dart';
-import 'package:keep/global/global_tool.dart';
+import 'package:keep/utils/tools_function.dart';
+import 'package:keep/utils/utils_class.dart';
+import 'package:provider/provider.dart';
 import 'upload_presenter.dart';
 
 class CropImageRoute extends StatefulWidget {
@@ -36,8 +38,10 @@ class _CropImageRouteState extends State<CropImageRoute>
   @override
   void onUploadSuccess(String hintTxt) {
     setState(() => _isLoading = false);
-    String base64Text = "data:image/jpg;base64," + base64Encode(file.readAsBytesSync());
-    Navigator.pop(_ctx, UploadPopReceiver({'hint_msg': hintTxt, 'avatar': base64Text}));
+    String base64Text =
+        "data:image/jpg;base64," + base64Encode(file.readAsBytesSync());
+    Navigator.pop(
+        _ctx, UploadPopReceiver({'hint_msg': hintTxt, 'avatar': base64Text}));
   }
 
   @override
@@ -46,21 +50,20 @@ class _CropImageRouteState extends State<CropImageRoute>
     Navigator.pop(_ctx, UploadPopReceiver({'hint_msg': '', 'avatar': 'null'}));
   }
 
-
   @override
   void dispose() {
     super.dispose();
     file?.delete();
   }
 
-
   @override
   Widget build(BuildContext context) {
     _ctx = context;
-    return Scaffold(
-        body: Container(
+    return Material(
+        child: Scaffold(
+            body: Container(
       height: MediaQuery.of(context).size.height,
-      width:  MediaQuery.of(context).size.width,
+      width: MediaQuery.of(context).size.width,
       // color: ThemeColors.color333333,
       color: Colors.grey,
       child: Column(
@@ -76,18 +79,22 @@ class _CropImageRouteState extends State<CropImageRoute>
           ),
           _isLoading
               ? new CircularProgressIndicator()
-              : RaisedButton(
-                  onPressed: () {
-                    setState(() {
-                      _isLoading = true;
-                    });
-                    _crop(widget.image);
-                  },
-                  child: Text('ok'),
-                )
+              : Consumer<ConnectivityStatus>(
+                  builder: (context, connectionStatus, _) {
+                  return RaisedButton(
+                    onPressed: () {
+                      if(connectionStatus == ConnectivityStatus.Available){
+                        setState(() => _isLoading = true);
+                        _crop(widget.image);
+                      } else 
+                        showHintText('Ah oh, No Internet!');
+                    },
+                    child: Text('ok'),
+                  );
+                })
         ],
       ),
-    ));
+    )));
   }
 
   Future<void> _crop(File originalFile) async {

@@ -3,7 +3,7 @@ const dbSchema = `CREATE TABLE IF NOT EXISTS FriendShip (
       user_one_id INTEGER NOT NULL,
       user_two_id INTEGER NOT NULL,
       status INTEGER NOT NULL DEFAULT '0',
-      action_user_id INTEGER NOT NULL,
+          action_user_id INTEGER NOT NULL,
       FOREIGN KEY (user_one_id) REFERENCES User(user_id) ON DELETE CASCADE ON UPDATE CASCADE,
       FOREIGN KEY (user_two_id) REFERENCES User(user_id) ON DELETE CASCADE ON UPDATE CASCADE
     );`;
